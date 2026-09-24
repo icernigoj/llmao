@@ -1,0 +1,104 @@
+{
+  "name": "llmao",
+  "version": "0.1.0",
+  "description": "An AI that isn't. Streams, reasons, calls tools and hallucinates like an LLM \u2014 powered by a handful of regexes. Drop-in OpenAI, Anthropic and Vercel AI SDK clients.",
+  "keywords": [
+    "llm",
+    "ai",
+    "fake",
+    "mock",
+    "openai",
+    "anthropic",
+    "ai-sdk",
+    "agent",
+    "joke"
+  ],
+  "license": "MIT",
+  "author": "Iv\u00e1n Cernigoj",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "llmao": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./openai": {
+      "import": {
+        "types": "./dist/openai.d.mts",
+        "default": "./dist/openai.mjs"
+      },
+      "require": {
+        "types": "./dist/openai.d.cts",
+        "default": "./dist/openai.cjs"
+      }
+    },
+    "./anthropic": {
+      "import": {
+        "types": "./dist/anthropic.d.mts",
+        "default": "./dist/anthropic.mjs"
+      },
+      "require": {
+        "types": "./dist/anthropic.d.cts",
+        "default": "./dist/anthropic.cjs"
+      }
+    },
+    "./ai-sdk": {
+      "import": {
+        "types": "./dist/ai-sdk.d.mts",
+        "default": "./dist/ai-sdk.mjs"
+      },
+      "require": {
+        "types": "./dist/ai-sdk.d.cts",
+        "default": "./dist/ai-sdk.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
+    "smoke": "node test/smoke.mjs",
+    "prepublishOnly": "pnpm check"
+  },
+  "peerDependencies": {
+    "@ai-sdk/provider": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/provider": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "^4.0.18",
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@types/node": "^26.6.2",
+    "ai": "^7.0.113",
+    "openai": "^7.23.0",
+    "tsdown": "^0.23.0",
+    "typescript": "^5.9",
+    "vitest": "^5.0.1",
+    "zod": "^4.6.5"
+  }
+}

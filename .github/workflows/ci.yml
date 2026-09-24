@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Every Monday, test against the latest SDKs so breaking changes are caught
+  # before users hit them
+  schedule:
+    - cron: '0 9 * * 1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdks: [locked, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.sdks == 'latest'
+        run: pnpm add -D ai@latest openai@latest @anthropic-ai/sdk@latest @ai-sdk/provider@latest
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        if: matrix.sdks == 'locked'
+        with:
+          name: dist
+          path: dist
+
+  # The dev tooling needs Node 22, but the library itself supports Node 18+
+  runtime:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node test/smoke.mjs
