@@ -15,6 +15,14 @@
   ],
   "license": "MIT",
   "author": "Iv\u00e1n Cernigoj",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icernigoj/llmao.git"
+  },
+  "homepage": "https://github.com/icernigoj/llmao#readme",
+  "bugs": {
+    "url": "https://github.com/icernigoj/llmao/issues"
+  },
   "type": "module",
   "sideEffects": false,
   "engines": {
