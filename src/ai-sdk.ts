@@ -9,6 +9,7 @@
  * ```
  */
 import {
+  APICallError,
   NoSuchModelError,
   type EmbeddingModelV4,
   type LanguageModelV4,
@@ -22,8 +23,9 @@ import {
   type ProviderV4,
   type SharedV4ProviderMetadata,
 } from '@ai-sdk/provider';
-import { respond, type EngineOptions } from './engine';
-import { hashString } from './rng';
+import { embed } from './embeddings';
+import { respond, type EngineOptions, type Response } from './engine';
+import { LlmaoAPIError } from './errors';
 import { randomId } from './stream';
 import { countTokens } from './tokens';
 import type { Answer, ToolChoice, Turn } from './types';
@@ -114,6 +116,28 @@ function metadata(answer: Answer): SharedV4ProviderMetadata {
   };
 }
 
+function toAPICallError(error: LlmaoAPIError, requestBodyValues: unknown): APICallError {
+  return new APICallError({
+    message: error.message,
+    url: 'https://llmao.invalid/v1/generate',
+    requestBodyValues,
+    statusCode: error.status,
+    responseHeaders: error.kind === 'rate_limit' ? { 'retry-after': String(error.retryAfter) } : {},
+    isRetryable: true,
+  });
+}
+
+/** Waits for the simulated failure, if any, and throws it as the AI SDK expects */
+async function throwFailure(response: Response, options: LanguageModelV4CallOptions): Promise<void> {
+  if (!response.failure) return;
+  try {
+    await response.wait(options.abortSignal);
+  } catch (error) {
+    if (error instanceof LlmaoAPIError) throw toAPICallError(error, { prompt: options.prompt });
+    throw error;
+  }
+}
+
 class LlmaoLanguageModel implements LanguageModelV4 {
   readonly specificationVersion = 'v4';
   readonly provider = 'llmao';
@@ -132,6 +156,8 @@ class LlmaoLanguageModel implements LanguageModelV4 {
           tool.type === 'function' ? [{ name: tool.name, description: tool.description, parameters: tool.inputSchema as Record<string, unknown> }] : [],
         ),
         toolChoice: toToolChoice(options.toolChoice),
+        responseFormat:
+          options.responseFormat?.type === 'json' ? { type: 'json', schema: options.responseFormat.schema as Record<string, unknown> | undefined } : undefined,
       },
       {
         ...this.options,
@@ -144,7 +170,9 @@ class LlmaoLanguageModel implements LanguageModelV4 {
   }
 
   async doGenerate(options: LanguageModelV4CallOptions) {
-    const answer = await this.start(options).wait(options.abortSignal);
+    const response = this.start(options);
+    await throwFailure(response, options);
+    const answer = await response.wait(options.abortSignal);
 
     const content: LanguageModelV4Content[] = [];
     if (answer.reasoning.length > 0) content.push({ type: 'reasoning', text: answer.reasoning.join('\n') });
@@ -165,6 +193,7 @@ class LlmaoLanguageModel implements LanguageModelV4 {
 
   async doStream(options: LanguageModelV4CallOptions) {
     const response = this.start(options);
+    await throwFailure(response, options);
     const controller = new AbortController();
     options.abortSignal?.addEventListener('abort', () => controller.abort(options.abortSignal?.reason), { once: true });
     const events = response.events(controller.signal);
@@ -234,24 +263,6 @@ class LlmaoLanguageModel implements LanguageModelV4 {
 
     return { stream };
   }
-}
-
-const EMBEDDING_DIMENSIONS = 256;
-
-/**
- * Feature hashing: every word and pair of words lands in a bucket.  It is
- * not semantic at all, but texts that share words do end up close together.
- */
-function embed(text: string): number[] {
-  const vector = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
-  const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-  const features = [...words, ...words.slice(1).map((word, i) => `${words[i]} ${word}`)];
-  for (const feature of features) {
-    const hash = hashString(feature);
-    vector[hash % EMBEDDING_DIMENSIONS]! += hash & 0x100000 ? 1 : -1;
-  }
-  const norm = Math.hypot(...vector) || 1;
-  return vector.map((value) => value / norm);
 }
 
 class LlmaoEmbeddingModel implements EmbeddingModelV4 {

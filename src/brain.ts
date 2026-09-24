@@ -2,8 +2,10 @@ import { detectLanguage, type Localized } from './language';
 import type { Persona } from './models';
 import type { Rng } from './rng';
 import { GENERIC_STEPS, SKILLS, type SkillOutput } from './skills';
+import { generateObject } from './objects';
+import { findScriptedReply, LlmaoUnscriptedError, scriptContext } from './script';
 import { describeToolOutput, pickTool, synthesizeArgs } from './tools';
-import type { Language, ThinkRequest, Thought, ToolCall, Turn } from './types';
+import type { Language, Script, ScriptedReply, ThinkRequest, Thought, ToolCall, Turn } from './types';
 
 export interface BrainSettings {
   temperature: number;
@@ -13,6 +15,8 @@ export interface BrainSettings {
   persona: Persona;
   rng: Rng;
   now: Date;
+  script?: Script;
+  unscripted?: 'improvise' | 'error';
 }
 
 const OPENERS: Localized<string[]> = {
@@ -130,6 +134,33 @@ export function think(request: ThinkRequest, settings: BrainSettings): Thought {
   const language = resolveLanguage(settings, system, prompt);
   const concise = temperature === 0 || persona === 'mini' || /\b(?:concise|brief|short|terse|conciso|breve|corto)\b/i.test(system);
   const say = (text: Localized) => text[language];
+
+  if (settings.script || settings.unscripted === 'error') {
+    const context = scriptContext(turns);
+    const reply = settings.script ? findScriptedReply(settings.script, context) : undefined;
+    if (reply) return scriptedThought(reply, request, language, rng);
+    if (settings.unscripted === 'error') throw new LlmaoUnscriptedError(context.prompt);
+  }
+
+  if (request.responseFormat) {
+    const object = generateObject(request.responseFormat.schema, prompt, rng);
+    return {
+      reasoning: settings.reasoning
+        ? [
+            say({ en: 'Reading the schema carefully…', es: 'Leyendo el schema con atención…' }),
+            say({ en: 'Making up plausible values…', es: 'Inventando valores verosímiles…' }),
+            say({ en: 'Validating (optimistically)…', es: 'Validando (con optimismo)…' }),
+          ]
+        : [],
+      text: JSON.stringify(object),
+      toolCalls: [],
+      object,
+      confidence: 0.99,
+      hallucinated: false,
+      skill: 'structured-output',
+      language,
+    };
+  }
 
   let skill: string;
   let output: SkillOutput;
@@ -263,6 +294,23 @@ export function think(request: ThinkRequest, settings: BrainSettings): Thought {
 
 function withPeriod(value: string): string {
   return /[.!?…)\]"'\p{Extended_Pictographic}]$/u.test(value.trim()) ? value : `${value}.`;
+}
+
+function scriptedThought(reply: ScriptedReply, request: ThinkRequest, language: Language, rng: Rng): Thought {
+  const prompt = scriptContext(request.turns).prompt;
+  const object =
+    reply.object ?? (request.responseFormat && reply.text === undefined ? generateObject(request.responseFormat.schema, prompt, rng) : undefined);
+  return {
+    reasoning: reply.reasoning ?? [],
+    text: reply.text ?? (object !== undefined ? JSON.stringify(object) : ''),
+    toolCalls: (reply.toolCalls ?? []).map((call) => ({ id: call.id ?? callId(rng), name: call.name, args: call.args ?? {} })),
+    object,
+    confidence: 1,
+    hallucinated: false,
+    skill: 'script',
+    language,
+    failure: reply.error,
+  };
 }
 
 function lowerFirst(value: string): string {

@@ -8,7 +8,9 @@
  * ```
  */
 import { respond, type EngineOptions } from './engine';
+import type { LlmaoAPIError } from './errors';
 import { MODELS } from './models';
+import { withRetries } from './retry';
 import { chunkString, LlmaoStream, randomId } from './stream';
 import type { Answer, JsonSchema, ToolChoice, ToolResult, Turn } from './types';
 
@@ -42,6 +44,7 @@ export interface ChatCompletionCreateParams {
   tools?: ReadonlyArray<ChatCompletionTool>;
   tool_choice?: ChatCompletionToolChoiceOption;
   stream_options?: { include_usage?: boolean } | null;
+  response_format?: { type: string; json_schema?: { name?: string; schema?: unknown } };
 }
 
 export type ChatCompletionCreateResult<P extends ChatCompletionCreateParams> = P extends { stream: true }
@@ -115,7 +118,66 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+export class OpenAIError extends Error {}
+
+/** Same shape as the SDK's `APIError`, so `error.status` and friends work */
+export class APIError extends OpenAIError {
+  readonly code: string | null | undefined;
+  readonly param: string | null | undefined;
+  readonly type: string | undefined;
+  readonly requestID: string | null | undefined;
+
+  constructor(
+    readonly status: number | undefined,
+    readonly error: { message: string; type?: string; code?: string | null; param?: string | null } | undefined,
+    message: string | undefined,
+    readonly headers: Headers | undefined,
+  ) {
+    super(status ? `${status} ${message ?? ''}`.trim() : (message ?? 'Unknown error'));
+    this.name = new.target.name;
+    this.code = error?.code;
+    this.param = error?.param;
+    this.type = error?.type;
+    this.requestID = headers?.get('x-request-id');
+  }
+}
+
+export class APIConnectionError extends APIError {
+  constructor({ message }: { message?: string } = {}) {
+    super(undefined, undefined, message ?? 'Connection error.', undefined);
+  }
+}
+
+export class APIConnectionTimeoutError extends APIConnectionError {
+  constructor({ message }: { message?: string } = {}) {
+    super({ message: message ?? 'Request timed out.' });
+  }
+}
+
+export class RateLimitError extends APIError {}
+
+export class InternalServerError extends APIError {}
+
+export function toOpenAIError(error: LlmaoAPIError): APIError {
+  const headers = new Headers({ 'x-request-id': `req_lmao${randomId(16)}` });
+  switch (error.kind) {
+    case 'rate_limit':
+      headers.set('retry-after', String(error.retryAfter));
+      return new RateLimitError(429, { message: error.message, type: 'requests', code: 'rate_limit_exceeded', param: null }, error.message, headers);
+    case 'server_error':
+      return new InternalServerError(500, { message: error.message, type: 'server_error', code: null, param: null }, error.message, headers);
+    case 'timeout':
+      return new APIConnectionTimeoutError({ message: error.message });
+  }
+}
+
+export interface ParsedChatCompletion<T> extends ChatCompletion {
+  choices: Array<ChatCompletion['choices'][number] & { message: ChatCompletion['choices'][number]['message'] & { parsed: T | null } }>;
+}
+
 export interface ClientOptions extends EngineOptions {
+  /** Retries for simulated failures, like the real SDK  @default 2 */
+  maxRetries?: number;
   /** Accepted for compatibility.  llmao does not need one, and will not tell anyone */
   apiKey?: string;
   baseURL?: string;
@@ -200,26 +262,58 @@ class Completions {
     return this.run(params, options) as Promise<ChatCompletionCreateResult<P>>;
   }
 
+  /** Like `create`, but also parses structured output into `message.parsed` */
+  async parse<T = unknown>(
+    params: ChatCompletionCreateParams & { response_format?: { $parseRaw?: (content: string) => T } },
+    options?: RequestOptions,
+  ): Promise<ParsedChatCompletion<T>> {
+    const completion = (await this.run({ ...params, stream: false }, options)) as ChatCompletion;
+    const parseRaw = params.response_format?.$parseRaw;
+    return {
+      ...completion,
+      choices: completion.choices.map((choice) => {
+        const content = choice.message.content;
+        const parsed =
+          content === null || !params.response_format?.type.startsWith('json')
+            ? null
+            : parseRaw
+              ? parseRaw(content)
+              : (JSON.parse(content) as T);
+        return { ...choice, message: { ...choice.message, parsed } };
+      }),
+    };
+  }
+
   private async run(
     params: ChatCompletionCreateParams,
     options: RequestOptions = {},
   ): Promise<ChatCompletion | LlmaoStream<ChatCompletionChunk>> {
-    const response = respond(
-      {
-        turns: toTurns(params.messages),
-        tools: params.tools?.flatMap((tool) =>
-          tool.type === 'function' && tool.function
-            ? [{ name: tool.function.name, description: tool.function.description, parameters: tool.function.parameters as JsonSchema }]
-            : [],
+    const format = params.response_format;
+    const response = await withRetries(
+      (attempt) =>
+        respond(
+          {
+            turns: toTurns(params.messages),
+            tools: params.tools?.flatMap((tool) =>
+              tool.type === 'function' && tool.function
+                ? [{ name: tool.function.name, description: tool.function.description, parameters: tool.function.parameters as JsonSchema }]
+                : [],
+            ),
+            toolChoice: toToolChoice(params.tool_choice),
+            responseFormat:
+              format?.type === 'json_schema' || format?.type === 'json_object'
+                ? { type: 'json', schema: format.json_schema?.schema as JsonSchema | undefined }
+                : undefined,
+          },
+          {
+            ...this.options,
+            model: params.model,
+            temperature: params.temperature ?? this.options.temperature,
+            seed: params.seed ?? this.options.seed,
+            attempt,
+          },
         ),
-        toolChoice: toToolChoice(params.tool_choice),
-      },
-      {
-        ...this.options,
-        model: params.model,
-        temperature: params.temperature ?? this.options.temperature,
-        seed: params.seed ?? this.options.seed,
-      },
+      { maxRetries: this.options.maxRetries ?? 2, speed: this.options.speed, signal: options.signal, toError: toOpenAIError },
     );
 
     const id = `chatcmpl-lmao${randomId(20)}`;
@@ -290,6 +384,13 @@ class Completions {
 }
 
 export class OpenAI {
+  static OpenAIError = OpenAIError;
+  static APIError = APIError;
+  static APIConnectionError = APIConnectionError;
+  static APIConnectionTimeoutError = APIConnectionTimeoutError;
+  static RateLimitError = RateLimitError;
+  static InternalServerError = InternalServerError;
+
   readonly chat: { completions: Completions };
   readonly models: {
     list(): Promise<{ object: 'list'; data: Array<{ id: string; object: 'model'; created: number; owned_by: string }> }>;

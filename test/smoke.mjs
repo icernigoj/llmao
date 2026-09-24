@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { agentify, createLlmao } from '../dist/index.mjs';
 import OpenAI from '../dist/openai.mjs';
 import Anthropic from '../dist/anthropic.mjs';
+import { serve } from '../dist/server.mjs';
 
 const options = { speed: 'instant', temperature: 0, hallucinationRate: 0 };
 
@@ -26,5 +27,33 @@ const message = await new Anthropic(options).messages.stream({ model: 'x', max_t
 assert.equal(message, '1, 2');
 
 assert.equal(await agentify(Math, { log: () => {}, thinkingTime: 0 }).abs(-3), 3);
+
+// Scripts, structured output and failures
+const scripted = createLlmao({ ...options, script: [{ when: /refund/i, text: 'On its way.' }] });
+assert.equal((await scripted.ask('my REFUND?')).text, 'On its way.');
+const { object } = await createLlmao(options).ask('a user', { schema: { type: 'object', properties: { age: { type: 'integer', minimum: 18, maximum: 20 } }, required: ['age'] } });
+assert.ok(object.age >= 18 && object.age <= 20);
+await assert.rejects(
+  new OpenAI({ ...options, maxRetries: 0, failures: { rateLimit: 1 } }).chat.completions.create({ model: 'x', messages: [{ role: 'user', content: 'hi' }] }),
+  (error) => error instanceof OpenAI.RateLimitError && error.status === 429,
+);
+
+// The HTTP server
+const server = await serve({ ...options, port: 0 });
+try {
+  const response = await fetch(`${server.url}/v1/chat/completions`, {
+    method: 'POST',
+    body: JSON.stringify({ model: 'x', messages: [{ role: 'user', content: 'is 4 even?' }] }),
+  });
+  assert.equal((await response.json()).choices[0].message.content, '4 is even.');
+
+  const stream = await fetch(`${server.url}/v1/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ model: 'x', max_tokens: 10, stream: true, messages: [{ role: 'user', content: 'is 4 even?' }] }),
+  });
+  assert.match(await stream.text(), /event: message_stop/);
+} finally {
+  await server.close();
+}
 
 console.log(`smoke ok on node ${process.version}`);

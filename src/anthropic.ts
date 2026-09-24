@@ -8,6 +8,8 @@
  * ```
  */
 import { respond, type EngineOptions, type Response } from './engine';
+import type { LlmaoAPIError } from './errors';
+import { withRetries } from './retry';
 import { chunkString, LlmaoStream, randomId } from './stream';
 import type { Answer, JsonSchema, ToolChoice, ToolResult, Turn } from './types';
 
@@ -49,6 +51,7 @@ export interface MessageCreateParams {
   tools?: ReadonlyArray<Tool>;
   tool_choice?: { type: string; name?: string };
   thinking?: { type: string };
+  output_config?: { format?: { type: string; schema?: unknown } | null } | null;
   stream?: boolean;
 }
 
@@ -123,7 +126,58 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+export class AnthropicError extends Error {}
+
+type ErrorBody = { type: 'error'; error: { type: string; message: string } };
+
+/** Same shape as the SDK's `APIError`, so `error.status` and friends work */
+export class APIError extends AnthropicError {
+  readonly requestID: string | null | undefined;
+
+  constructor(
+    readonly status: number | undefined,
+    readonly error: ErrorBody | undefined,
+    message: string | undefined,
+    readonly headers: Headers | undefined,
+  ) {
+    super(status ? `${status} ${JSON.stringify(error)}` : (message ?? 'Unknown error'));
+    this.name = new.target.name;
+    this.requestID = headers?.get('request-id');
+  }
+}
+
+export class APIConnectionError extends APIError {
+  constructor({ message }: { message?: string } = {}) {
+    super(undefined, undefined, message ?? 'Connection error.', undefined);
+  }
+}
+
+export class APIConnectionTimeoutError extends APIConnectionError {
+  constructor({ message }: { message?: string } = {}) {
+    super({ message: message ?? 'Request timed out.' });
+  }
+}
+
+export class RateLimitError extends APIError {}
+
+export class InternalServerError extends APIError {}
+
+export function toAnthropicError(error: LlmaoAPIError): APIError {
+  const headers = new Headers({ 'request-id': `req_lmao${randomId(16)}` });
+  switch (error.kind) {
+    case 'rate_limit':
+      headers.set('retry-after', String(error.retryAfter));
+      return new RateLimitError(429, { type: 'error', error: { type: 'rate_limit_error', message: error.message } }, error.message, headers);
+    case 'server_error':
+      return new InternalServerError(500, { type: 'error', error: { type: 'api_error', message: error.message } }, error.message, headers);
+    case 'timeout':
+      return new APIConnectionTimeoutError({ message: error.message });
+  }
+}
+
 export interface ClientOptions extends EngineOptions {
+  /** Retries for simulated failures, like the real SDK  @default 2 */
+  maxRetries?: number;
   /** Accepted for compatibility.  llmao does not need one */
   apiKey?: string;
   baseURL?: string;
@@ -218,17 +272,23 @@ interface Prepared {
   showThinking: boolean;
 }
 
-function prepare(params: MessageCreateParams, options: ClientOptions): Prepared {
+async function prepare(params: MessageCreateParams, options: ClientOptions, signal?: AbortSignal): Promise<Prepared> {
   const showThinking = params.thinking?.type === 'enabled' || params.thinking?.type === 'adaptive';
-  const response = respond(
-    {
-      turns: toTurns(params),
-      tools: params.tools?.flatMap((tool) =>
-        tool.name && tool.input_schema ? [{ name: tool.name, description: tool.description, parameters: tool.input_schema as JsonSchema }] : [],
+  const format = params.output_config?.format;
+  const response = await withRetries(
+    (attempt) =>
+      respond(
+        {
+          turns: toTurns(params),
+          tools: params.tools?.flatMap((tool) =>
+            tool.name && tool.input_schema ? [{ name: tool.name, description: tool.description, parameters: tool.input_schema as JsonSchema }] : [],
+          ),
+          toolChoice: toToolChoice(params.tool_choice),
+          responseFormat: format?.type === 'json_schema' ? { type: 'json', schema: format.schema as JsonSchema | undefined } : undefined,
+        },
+        { ...options, model: params.model, temperature: params.temperature ?? options.temperature, attempt },
       ),
-      toolChoice: toToolChoice(params.tool_choice),
-    },
-    { ...options, model: params.model, temperature: params.temperature ?? options.temperature },
+    { maxRetries: options.maxRetries ?? 2, speed: options.speed, signal, toError: toAnthropicError },
   );
   const { answer } = response;
   const message: Message = {
@@ -333,19 +393,20 @@ export class MessageStream implements AsyncIterable<MessageStreamEvent> {
   private readonly done: Promise<Message>;
   readonly controller = new AbortController();
 
-  constructor(prepared: Prepared, signal?: AbortSignal) {
+  constructor(start: (signal: AbortSignal) => Promise<Prepared>, signal?: AbortSignal) {
     if (signal) signal.addEventListener('abort', () => this.controller.abort(signal.reason), { once: true });
-    this.done = this.run(prepared);
+    this.done = this.run(start);
     // Errors are surfaced through the iterator, the listeners and finalMessage()
     this.done.catch(() => {});
   }
 
-  private async run(prepared: Prepared): Promise<Message> {
+  private async run(start: (signal: AbortSignal) => Promise<Prepared>): Promise<Message> {
     let text = '';
     let thinking = '';
     try {
       // Let the caller attach listeners before anything happens
       await Promise.resolve();
+      const prepared = await start(this.controller.signal);
       for await (const event of streamEvents(prepared, this.controller.signal)) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           text += event.delta.text;
@@ -417,7 +478,7 @@ class Messages {
   }
 
   private async run(params: MessageCreateParams, options: RequestOptions = {}): Promise<Message | LlmaoStream<MessageStreamEvent>> {
-    const prepared = prepare(params, this.options);
+    const prepared = await prepare(params, this.options, options.signal);
     if (params.stream) {
       return new LlmaoStream((signal) => streamEvents(prepared, signal), options.signal);
     }
@@ -426,11 +487,18 @@ class Messages {
   }
 
   stream(params: MessageCreateParams, options: RequestOptions = {}): MessageStream {
-    return new MessageStream(prepare(params, this.options), options.signal);
+    return new MessageStream((signal) => prepare(params, this.options, signal), options.signal);
   }
 }
 
 export class Anthropic {
+  static AnthropicError = AnthropicError;
+  static APIError = APIError;
+  static APIConnectionError = APIConnectionError;
+  static APIConnectionTimeoutError = APIConnectionTimeoutError;
+  static RateLimitError = RateLimitError;
+  static InternalServerError = InternalServerError;
+
   readonly messages: Messages;
 
   constructor(options: ClientOptions = {}) {

@@ -1,11 +1,14 @@
 import { think } from './brain';
+import { LlmaoAPIError } from './errors';
 import { getModel, type ModelId } from './models';
-import { createRng, hashString, randomSeed } from './rng';
+import { createRng, hashString, randomSeed, type Rng } from './rng';
 import { countTokens, tokenize } from './tokens';
-import type { Answer, LlmaoEvent, LlmaoOptions, Speed, ThinkRequest, Thought, Turn, Usage } from './types';
+import type { Answer, FailureKind, Failures, LlmaoEvent, LlmaoOptions, Speed, ThinkRequest, Thought, Turn, Usage } from './types';
 
 export interface EngineOptions extends LlmaoOptions {
   model?: ModelId;
+  /** Retry number, so that retries don't always hit the same simulated failure */
+  attempt?: number;
 }
 
 type Range = readonly [number, number];
@@ -16,6 +19,9 @@ const SPEEDS: Record<Speed, { step: Range; firstToken: Range; token: Range }> = 
   realistic: { step: [250, 700], firstToken: [300, 900], token: [12, 45] },
   dramatic: { step: [900, 2000], firstToken: [800, 1600], token: [30, 90] },
 };
+
+/** How long a rate limit asks clients to wait, so tests at `instant` speed don't wait 20s */
+const RETRY_AFTER: Record<Speed, number> = { instant: 0, fast: 1, realistic: 20, dramatic: 60 };
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   signal?.throwIfAborted();
@@ -58,10 +64,27 @@ function computeUsage(request: ThinkRequest, thought: Thought): Usage {
   };
 }
 
+function rollFailure(failures: Failures | undefined, rng: Rng): FailureKind | undefined {
+  if (!failures) return undefined;
+  const roll = rng.next();
+  let threshold = 0;
+  for (const [kind, probability] of [
+    ['rate_limit', failures.rateLimit],
+    ['server_error', failures.serverError],
+    ['timeout', failures.timeout],
+  ] as const) {
+    threshold += probability ?? 0;
+    if (roll < threshold) return kind;
+  }
+  return undefined;
+}
+
 export interface Response {
   model: string;
   thought: Thought;
   answer: Answer;
+  /** Set when this request is going to fail */
+  failure: FailureKind | undefined;
   /** Plays the answer out with realistic timing */
   events(signal?: AbortSignal): AsyncGenerator<LlmaoEvent>;
   /** Waits as long as a real model would, then resolves */
@@ -77,6 +100,7 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
   const seed = settings.seed === undefined ? randomSeed() : (settings.seed ^ hashString(JSON.stringify(request))) >>> 0;
   const rng = createRng(seed);
   const timingRng = createRng(seed ^ 0x9e3779b9);
+  const failureRng = createRng((seed ^ 0x85ebca6b ^ Math.imul(options.attempt ?? 0, 0x27d4eb2f)) >>> 0);
 
   const thought = think(request, {
     temperature,
@@ -86,7 +110,10 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
     persona: card.persona,
     rng,
     now: new Date(),
+    script: settings.script,
+    unscripted: settings.unscripted,
   });
+  const failure = thought.failure ?? rollFailure(settings.failures, failureRng);
 
   const answer: Answer = {
     text: thought.text,
@@ -96,6 +123,7 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
     hallucinated: thought.hallucinated,
     skill: thought.skill,
     language: thought.language,
+    ...(thought.object !== undefined ? { object: thought.object } : {}),
     usage: computeUsage(request, thought),
   };
 
@@ -103,6 +131,11 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
 
   async function* events(signal?: AbortSignal): AsyncGenerator<LlmaoEvent> {
     const pause = (range: Range) => sleep(timingRng.int(range[0], range[1]), signal);
+
+    if (failure) {
+      await pause(failure === 'timeout' ? [speed.firstToken[1] * 3, speed.firstToken[1] * 4] : speed.firstToken);
+      throw new LlmaoAPIError(failure, RETRY_AFTER[settings.speed ?? 'realistic']);
+    }
 
     if (thought.reasoning.length > 0) {
       yield { type: 'reasoning-start' };
@@ -139,6 +172,7 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
     model,
     thought,
     answer,
+    failure,
     events,
     async wait(signal) {
       for await (const _ of events(signal)) {

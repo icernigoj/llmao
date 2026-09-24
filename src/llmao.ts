@@ -1,6 +1,6 @@
 import { agentify, type AgentifyOptions, type Agentified } from './agentify';
 import { respond, type EngineOptions } from './engine';
-import type { Answer, LlmaoEvent, ToolChoice, ToolDefinition, Turn } from './types';
+import type { Answer, JsonSchema, LlmaoEvent, ToolChoice, ToolDefinition, Turn } from './types';
 
 export interface AskOptions extends EngineOptions {
   /** Tools the model may pretend to need */
@@ -8,6 +8,8 @@ export interface AskOptions extends EngineOptions {
   toolChoice?: ToolChoice;
   /** A system prompt.  Some instructions are even followed (try "talk like a pirate") */
   system?: string;
+  /** Ask for a JSON object matching this schema.  It ends up in `answer.object`. */
+  schema?: JsonSchema;
   signal?: AbortSignal;
 }
 
@@ -29,19 +31,22 @@ function toTurns(prompt: Prompt, system?: string): Turn[] {
 
 export function createLlmao(defaults: EngineOptions = {}): Llmao {
   const start = (prompt: Prompt, options: AskOptions = {}) => {
-    const { tools, toolChoice, system, signal, ...engineOptions } = options;
-    const response = respond({ turns: toTurns(prompt, system), tools, toolChoice }, { ...defaults, ...engineOptions });
+    const { tools, toolChoice, system, schema, signal, ...engineOptions } = options;
+    const response = respond(
+      { turns: toTurns(prompt, system), tools, toolChoice, responseFormat: schema ? { type: 'json', schema } : undefined },
+      { ...defaults, ...engineOptions },
+    );
     return { response, signal };
   };
 
   return {
-    ask(prompt, options) {
+    async ask(prompt, options) {
       const { response, signal } = start(prompt, options);
       return response.wait(signal);
     },
-    stream(prompt, options) {
+    async *stream(prompt, options) {
       const { response, signal } = start(prompt, options);
-      return response.events(signal);
+      yield* response.events(signal);
     },
     agentify(target, options) {
       return agentify(target, { seed: defaults.seed, ...options });

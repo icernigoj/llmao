@@ -499,7 +499,7 @@ const STOP_WORDS = /^(?:what|how|why|when|where|who|which|is|are|do|does|can|cou
 
 const TRAILING_WORDS = /^(?:to|for|me|please|mean|means|work|works|now|today|por favor|funciona|significa|hoy)$/i;
 
-function extractTopic(text: string): string {
+export function extractTopic(text: string): string {
   const words = text
     .replace(/[¿?¡!.,;:]/g, ' ')
     .split(/\s+/)

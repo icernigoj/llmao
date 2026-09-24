@@ -32,7 +32,60 @@ export interface LlmaoOptions {
   language?: Language | 'auto';
   /** Whether to "think" before answering (reasoning steps) @default true */
   reasoning?: boolean;
+  /**
+   * Scripted answers for tests: rules are checked in order and the first
+   * match wins.  Unmatched prompts are improvised, unless `unscripted` is
+   * `'error'`.
+   */
+  script?: Script;
+  /** What to do with prompts the script doesn't cover @default 'improvise' */
+  unscripted?: 'improvise' | 'error';
+  /** Probability (0-1) of each kind of failure, to test your error handling */
+  failures?: Failures;
 }
+
+export type FailureKind = 'rate_limit' | 'server_error' | 'timeout';
+
+export interface Failures {
+  rateLimit?: number;
+  serverError?: number;
+  timeout?: number;
+}
+
+export interface ScriptedReply {
+  text?: string;
+  reasoning?: string[];
+  toolCalls?: Array<{ name: string; args?: Record<string, unknown>; id?: string }>;
+  /** For structured output requests */
+  object?: unknown;
+  /** Fail instead of answering */
+  error?: FailureKind;
+}
+
+export interface ScriptContext {
+  /** The last user message */
+  prompt: string;
+  turns: Turn[];
+  /** Results of the tool calls, when the model is answering after them */
+  toolResults: ToolResult[];
+}
+
+export interface ScriptRule extends ScriptedReply {
+  /**
+   * A substring (case-insensitive), a regex or a predicate on the last user
+   * message.  Omit it to match everything.
+   */
+  when?: string | RegExp | ((context: ScriptContext) => boolean);
+  /** Only use this rule once, e.g. to fail the first attempt and succeed on the retry */
+  once?: boolean;
+  /**
+   * Match when the model is answering after tool results, instead of after a
+   * user message.  Use it to script the final answer of an agent loop.
+   */
+  afterToolResults?: boolean;
+}
+
+export type Script = ScriptRule[] | ((context: ScriptContext) => ScriptedReply | string | undefined);
 
 export type JsonSchema = {
   type?: string | string[];
@@ -77,6 +130,8 @@ export interface ThinkRequest {
   turns: Turn[];
   tools?: ToolDefinition[];
   toolChoice?: ToolChoice;
+  /** Ask for JSON, optionally matching a schema */
+  responseFormat?: { type: 'json'; schema?: JsonSchema };
 }
 
 /** What the "model" decided to say, before any theatrics */
@@ -90,6 +145,10 @@ export interface Thought {
   /** Which regex did the heavy lifting */
   skill: string;
   language: Language;
+  /** Set for structured output requests */
+  object?: unknown;
+  /** Set when the request should fail */
+  failure?: FailureKind;
 }
 
 export interface Usage {
@@ -109,6 +168,8 @@ export interface Answer {
   hallucinated: boolean;
   skill: string;
   language: Language;
+  /** Set for structured output requests */
+  object?: unknown;
   usage: Usage;
 }
 

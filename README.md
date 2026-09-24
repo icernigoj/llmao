@@ -18,27 +18,19 @@ It is also a few hundred lines of regular expressions.
 
 </div>
 
-```
-$ npx llmao "how many r are in strawberry?"
+<p align="center"><img src="https://raw.githubusercontent.com/icernigoj/llmao/main/assets/demo.gif" alt="llmao answering questions in the terminal: counting the r in strawberry, overthinking 2 + 2 into 3, and refusing to reverse a word for safety reasons" width="760"></p>
 
-💭 Consulting 175 billion parameters (it is a dozen regexes)…
-💭 Spelling it out: s-t-r-a-w-b-e-r-r-y
-💭 Counting every "r" very carefully, as I was trained to do…
-
-Great question! There are 3 "r" in "strawberry". I hope this helps! 😊
-```
-
-Run it a few more times. Sometimes there are 2.
+Try it: `npx llmao "how many r are in strawberry?"`. Run it a few times: sometimes there are 2.
 
 ## Why
 
 Every app needs AI now. **llmao gives your app the AI experience** — the typing effect, the "thinking", the tool calls, the vague answers delivered with total confidence — without the model, the GPU, the API key or the bill.
 
-It is a joke, but it is also genuinely handy:
+It is a joke, but it is also a real tool:
 
-- 🎤 **Demos and workshops** that can't fail because the Wi-Fi did, or because someone forgot the API key
+- 🧪 **Testing and mocking**: scripted answers, structured output, simulated rate limits and outages, and an HTTP server that any SDK in any language can point at. [See below](#testing-and-mocking).
 - 🎨 **Building chat UIs**: real streaming, reasoning and tool calls, with realistic latency, for free
-- 🧪 **Tests and CI** with `seed` for reproducible answers and `speed: 'instant'`
+- 🎤 **Demos and workshops** that can't fail because the Wi-Fi did, or because someone forgot the API key
 - 🤡 **Satire**: ship "AI-powered" features to people who insist on it
 
 ## Drop-in replacement for the SDKs you already use
@@ -102,6 +94,71 @@ Works with `generateText`, `streamText`, `useChat`, multi-step agents, and even 
 
 The adapters are checked against the official SDK types on every CI run, so a response from llmao is assignable to `OpenAI.ChatCompletion` and `Anthropic.Message`.
 
+## Testing and mocking
+
+Everything below works the same in the core API, the three SDK adapters and the HTTP server.
+
+### Scripted answers
+
+```ts
+import OpenAI from 'llmao/openai';
+
+const client = new OpenAI({
+  speed: 'instant',
+  script: [
+    { when: /refund/i, text: 'Your refund is on its way.' },
+    { when: 'weather', toolCalls: [{ name: 'get_weather', args: { city: 'Lima' } }] },
+    { when: 'weather', afterToolResults: true, text: 'It is sunny in Lima.' },
+  ],
+  unscripted: 'error', // fail the test on any prompt the script doesn't cover
+});
+```
+
+Rules match on a substring, a regex or a function, and the first one wins. `once: true` rules are used a single time, so you can script sequences. Without a match, llmao improvises, unless `unscripted: 'error'`.
+
+### Structured output
+
+`generateObject`, OpenAI's `response_format` and `chat.completions.parse()`, and Anthropic's `output_config` return objects that validate against your schema, with plausible values (names look like names, emails like emails, `min`/`max`, enums and `$ref`s are respected):
+
+```ts
+const { object } = await generateObject({
+  model: llmao(),
+  schema: z.object({ name: z.string(), email: z.string().email(), role: z.enum(['admin', 'editor']) }),
+  prompt: 'Create an editor',
+});
+// → e.g. { name: 'Grace Hopper', email: 'ada@example.com', role: 'editor' }
+```
+
+Or script the exact object with `{ object: { ... } }`.
+
+### Failures
+
+```ts
+// Fail some of the time
+new OpenAI({ failures: { rateLimit: 0.1, serverError: 0.05, timeout: 0.01 } });
+
+// Fail the first attempt, succeed on the retry
+new OpenAI({ script: [{ error: 'rate_limit', once: true }, { text: 'Back online.' }] });
+```
+
+Errors are the ones your code already handles: `OpenAI.RateLimitError` with `status: 429` and a `retry-after` header, `Anthropic.InternalServerError`, the AI SDK's retryable `APICallError`… The adapters retry with backoff like the official SDKs (`maxRetries`, default 2).
+
+### HTTP server
+
+For any language, or for code you can't change, run an OpenAI and Anthropic compatible server and point your SDK at it:
+
+```
+$ npx llmao serve --script script.json --failures rate_limit=0.05
+llmao is pretending to be an LLM at http://127.0.0.1:4141
+```
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:4141/v1", api_key="llmao")
+```
+
+It serves `/v1/chat/completions`, `/v1/messages`, `/v1/embeddings` and `/v1/models`, with streaming. In JSON scripts, `when` can be a `"/regex/flags"` string. In Node tests, start it on a free port with `import { serve } from 'llmao/server'` and `await serve({ port: 0 })`.
+
 ## Models
 
 | Model | |
@@ -164,6 +221,9 @@ for await (const event of ai.stream('Tell me a joke')) {
 | `speed` | `'realistic'` | `'instant'`, `'fast'`, `'realistic'` or `'dramatic'` |
 | `language` | `'auto'` | Answers in English or Spanish (`'en'`, `'es'`) |
 | `reasoning` | `true` | Whether it "thinks" first |
+| `script` | | Scripted answers, see [Testing and mocking](#testing-and-mocking) |
+| `unscripted` | `'improvise'` | `'error'` fails on prompts the script doesn't cover |
+| `failures` | | Probability of `rateLimit`, `serverError` and `timeout` failures |
 
 It even follows (some) system prompts: try `system: 'Talk like a pirate'`.
 
@@ -191,7 +251,7 @@ For everything else, it has confidence.
 
 **Is it AGI?** About as much as anything else.
 
-**Is this a real mock for testing LLM apps?** It's good for UI development, demos and reproducible tests. For recording and replaying real provider traffic over HTTP, use a dedicated tool such as [aimock](https://github.com/CopilotKit/aimock).
+**Can I really use it for testing?** Yes: scripted answers, structured output, simulated failures and an HTTP server, checked against the official SDKs in CI. If you need to record and replay real provider traffic, a dedicated tool such as [aimock](https://github.com/CopilotKit/aimock) is a better fit.
 
 **Can I contribute a skill?** Please do. A skill is a function that gets the prompt and returns an answer, a few reasoning steps, and optionally a confidently wrong alternative.
 

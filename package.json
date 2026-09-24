@@ -1,7 +1,7 @@
 {
   "name": "llmao",
-  "version": "0.1.0",
-  "description": "Fake LLM that streams, reasons, calls tools and hallucinates — powered by regex. Drop-in mock for the OpenAI, Anthropic and Vercel AI SDK clients. No API key, no GPU.",
+  "version": "0.2.0",
+  "description": "Fake LLM for fun and for testing: streams, reasons, calls tools, returns structured output and hallucinates — powered by regex. Drop-in OpenAI, Anthropic and Vercel AI SDK clients, plus an OpenAI/Anthropic compatible mock server. No API key.",
   "keywords": [
     "llm",
     "ai",
@@ -11,6 +11,9 @@
     "openai",
     "openai-mock",
     "anthropic",
+    "structured-output",
+    "mock-server",
+    "llm-testing",
     "claude",
     "chatgpt",
     "ai-sdk",
@@ -93,6 +96,16 @@
       "require": {
         "types": "./dist/ai-sdk.d.cts",
         "default": "./dist/ai-sdk.cjs"
+      }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server.d.mts",
+        "default": "./dist/server.mjs"
+      },
+      "require": {
+        "types": "./dist/server.d.cts",
+        "default": "./dist/server.cjs"
       }
     },
     "./package.json": "./package.json"

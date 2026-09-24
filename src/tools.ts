@@ -49,8 +49,18 @@ export function pickTool(
 
 const QUESTION_PREFIX = /^(?:can you|could you|please|what(?:'s| is)|how (?:is|are)|tell me|search(?: for)?|find|look up|busc[aá]|decime|qu[eé] es|c[oó]mo est[aá])\s+/i;
 
-function extractString(name: string, schema: JsonSchema, prompt: string): string | undefined {
-  const quoted = prompt.match(/["“']([^"”']+)["”']/);
+/** A capitalized word that is not just the start of a sentence */
+function properNoun(prompt: string): string | undefined {
+  return prompt.match(/(?<!^|[.?!¿¡]\s*)\b\p{Lu}[\p{L}-]+/u)?.[0];
+}
+
+export function extractString(
+  name: string,
+  schema: JsonSchema,
+  prompt: string,
+  { quoted: useQuoted = true }: { quoted?: boolean } = {},
+): string | undefined {
+  const quoted = useQuoted ? prompt.match(/["“']([^"”']+)["”']/) : null;
   if (quoted) return quoted[1];
 
   const key = `${name} ${schema.description ?? ''}`.toLowerCase();
@@ -59,9 +69,9 @@ function extractString(name: string, schema: JsonSchema, prompt: string): string
   if (/date|fecha/.test(key)) return prompt.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? new Date().toISOString().slice(0, 10);
   if (/city|location|place|country|ciudad|lugar|pa[ií]s/.test(key)) {
     const place = prompt.match(/\b(?:in|at|for|en|de|para)\s+((?:\p{Lu}[\p{L}-]*\s?){1,3})/u)?.[1]?.trim();
-    return place ?? prompt.match(/\b\p{Lu}[\p{L}-]+/u)?.[0];
+    return place ?? properNoun(prompt);
   }
-  if (/name|nombre/.test(key)) return prompt.match(/\b\p{Lu}[\p{L}-]+/u)?.[0];
+  if (/name|nombre/.test(key)) return properNoun(prompt);
 
   return prompt.replace(/[?¿!¡]/g, '').replace(QUESTION_PREFIX, '').trim() || undefined;
 }
