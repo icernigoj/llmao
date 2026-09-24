@@ -1,6 +1,10 @@
 <div align="center">
 
-# llmao
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/icernigoj/llmao/main/assets/logo-dark.png">
+  <img src="https://raw.githubusercontent.com/icernigoj/llmao/main/assets/logo-light.png" width="320" alt="llmao">
+</picture>
+
 
 **An AI that isn't.**
 
