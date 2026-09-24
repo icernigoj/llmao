@@ -1,7 +1,7 @@
 {
   "name": "llmao",
   "version": "0.1.0",
-  "description": "An AI that isn't. Streams, reasons, calls tools and hallucinates like an LLM \u2014 powered by a handful of regexes. Drop-in OpenAI, Anthropic and Vercel AI SDK clients.",
+  "description": "An AI that isn't. Streams, reasons, calls tools and hallucinates like an LLM — powered by a handful of regexes. Drop-in OpenAI, Anthropic and Vercel AI SDK clients.",
   "keywords": [
     "llm",
     "ai",
@@ -14,7 +14,7 @@
     "joke"
   ],
   "license": "MIT",
-  "author": "Iv\u00e1n Cernigoj",
+  "author": "Iván Cernigoj",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/icernigoj/llmao.git"
@@ -29,7 +29,7 @@
     "node": ">=18"
   },
   "bin": {
-    "llmao": "./dist/cli.mjs"
+    "llmao": "dist/cli.mjs"
   },
   "files": [
     "dist",
