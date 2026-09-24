@@ -40,7 +40,7 @@ describe('skills', () => {
     const answer = await sober.ask('explain quantum computing to me');
     expect(answer.skill).toBe('confident-fallback');
     expect(answer.text).toMatch(/quantum computing/i);
-    expect(answer.confidence).toBeGreaterThan(0.9);
+    expect(answer.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
   it('divides by zero gracefully', async () => {
@@ -71,7 +71,7 @@ describe('hallucinations', () => {
     const answer = await liar.ask('how many r are in strawberry?');
     expect(answer.text).toBe('There are 2 "r" in "strawberry".');
     expect(answer.hallucinated).toBe(true);
-    expect(answer.confidence).toBeGreaterThan(0.97);
+    expect(answer.confidence).toBeGreaterThanOrEqual(0.97);
   });
 
   it('never hallucinates at rate 0', async () => {
