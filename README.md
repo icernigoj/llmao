@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/icernigoj/llmao/main/assets/logo.svg" width="120" alt="llmao logo">
-
 # llmao
 
 **An AI that isn't.**
