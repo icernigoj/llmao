@@ -15,7 +15,7 @@ const cyan = paint(36);
 const yellow = paint(33);
 
 const HELP = `
-${bold('llmao')} — an AI that isn't
+${bold('llmao')}: an AI that isn't
 
 ${bold('Usage')}
   llmao "is 7 prime?"            Ask a question
@@ -232,7 +232,7 @@ async function main() {
     return;
   }
 
-  console.log(dim(`llmao (${values.model ?? 'lmao-1'}) — Ctrl+C to leave\n`));
+  console.log(dim(`llmao (${values.model ?? 'lmao-1'}). Ctrl+C to leave\n`));
   const readline = createInterface({ input: process.stdin, output: process.stdout });
   readline.on('SIGINT', () => {
     console.log(dim('\nBye! That was 0 real tokens.'));

@@ -1,7 +1,7 @@
 {
   "name": "llmao",
-  "version": "0.2.0",
-  "description": "Fake LLM for fun and for testing: streams, reasons, calls tools, returns structured output and hallucinates — powered by regex. Drop-in OpenAI, Anthropic and Vercel AI SDK clients, plus an OpenAI/Anthropic compatible mock server. No API key.",
+  "version": "0.2.1",
+  "description": "Fake LLM for fun and for testing: streams, reasons, calls tools, returns structured output and hallucinates, powered by regex. Drop-in OpenAI, Anthropic and Vercel AI SDK clients, plus an OpenAI/Anthropic compatible mock server. No API key.",
   "keywords": [
     "llm",
     "ai",

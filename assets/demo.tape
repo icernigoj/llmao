@@ -1,4 +1,4 @@
-# Records assets/demo.gif — run with: vhs assets/demo.tape (after pnpm build)
+# Records assets/demo.gif. Run it with `vhs assets/demo.tape` after `pnpm build`
 Output assets/demo.gif
 
 Set Shell "bash"

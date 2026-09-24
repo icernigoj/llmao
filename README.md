@@ -24,7 +24,7 @@ Try it: `npx llmao "how many r are in strawberry?"`. Run it a few times: sometim
 
 ## Why
 
-Every app needs AI now. **llmao gives your app the AI experience** — the typing effect, the "thinking", the tool calls, the vague answers delivered with total confidence — without the model, the GPU, the API key or the bill.
+Every app needs AI now. **llmao gives your app the AI experience**: the typing effect, the "thinking", the tool calls and the vague answers delivered with total confidence, without the model, the GPU, the API key or the bill.
 
 It is a joke, but it is also a real tool:
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Wording: no more em dashes in the CLI, the answers and the package description
+
 ## 0.2.0
 
 llmao is now a real testing tool (it is still a joke).

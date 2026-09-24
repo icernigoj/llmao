@@ -550,7 +550,7 @@ const confidentFallback: Skill = {
       en: [
         `Great question about ${topic}. The short answer is: it depends. The long answer is: it really depends.`,
         `${capitalize(topic)} is a complex, multifaceted topic. Experts agree that it is important, and some even say it matters.`,
-        `After careful consideration, I believe the answer regarding ${topic} is yes — in the broader sense.`,
+        `After careful consideration, I believe the answer regarding ${topic} is yes, in the broader sense.`,
         `There are three key things to know about ${topic}: context, nuance, and synergy.`,
         `I'd approach ${topic} step by step. First, understand it. Second, leverage it. Third, iterate.`,
         `Studies show that ${topic} is 73% more relevant than it was last year.`,
