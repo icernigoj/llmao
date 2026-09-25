@@ -155,19 +155,133 @@ for (const recipe of recipes) {
 
 // --- Landing page ----------------------------------------------------------------
 
-const snippet = marked.parse(`\`\`\`ts
-jest.mock('openai', () => require('llmao/openai')); // or vi.mock(...)
+const EXAMPLES = [
+  {
+    id: 'jest',
+    label: 'Jest',
+    logos: ['jest'],
+    caption: 'Mock <code>openai</code> with one line. Your app keeps calling <code>new OpenAI()</code>.',
+    guide: 'mock-openai-jest/',
+    code: `jest.mock('openai', () => require('llmao/openai'));
 
 import * as llmao from 'llmao/testing';
 import { classify } from './support'; // uses new OpenAI() inside
+
+beforeEach(() => llmao.reset());
 
 test('classifies shipping tickets', async () => {
   llmao.configure({ script: [{ when: /never arrived/i, text: 'shipping' }] });
 
   expect(await classify('My order never arrived')).toBe('shipping');
   expect(llmao.lastCall().prompt).toBe('My order never arrived');
+});`,
+  },
+  {
+    id: 'vitest',
+    label: 'Vitest',
+    logos: ['vitest'],
+    caption: 'Same idea with <code>vi.mock</code>. Test mode creates no timers, so fake timers work too.',
+    guide: 'mock-openai-vitest/',
+    code: `import * as llmao from 'llmao/testing';
+import { classify } from './support';
+
+vi.mock('openai', () => import('llmao/openai'));
+
+test('sends the right system prompt', async () => {
+  llmao.configure({ script: [{ text: 'billing' }] });
+  await classify('I was charged twice');
+
+  expect(llmao.lastCall()).toMatchObject({
+    model: 'gpt-4o',
+    system: 'Classify the ticket as billing, shipping or other.',
+  });
+});`,
+  },
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    logos: ['anthropic'],
+    caption: 'Script tool use: the first answer calls your tool, the second one reads its result.',
+    guide: 'mock-anthropic-sdk/',
+    code: `jest.mock('@anthropic-ai/sdk', () => require('llmao/anthropic'));
+
+import * as llmao from 'llmao/testing';
+import { askAboutStocks } from './agent';
+
+test('uses the stock tool', async () => {
+  llmao.configure({
+    script: [
+      { when: 'stock', toolCalls: [{ name: 'get_stock_price', args: { ticker: 'NVDA' } }] },
+      { when: 'stock', afterToolResults: true, text: 'NVDA is trading at $1,337.' },
+    ],
+  });
+
+  expect(await askAboutStocks('What is the stock price of NVDA?')).toBe('NVDA is trading at $1,337.');
+});`,
+  },
+  {
+    id: 'aisdk',
+    label: 'AI SDK',
+    logos: ['aisdk'],
+    caption: 'Mock <code>@ai-sdk/openai</code> or <code>@ai-sdk/anthropic</code>. <code>generateObject</code> gets objects that match your schema.',
+    guide: 'test-vercel-ai-sdk/',
+    code: `import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai'; // this is llmao now
+import { z } from 'zod';
+
+vi.mock('@ai-sdk/openai', () => import('llmao/ai-sdk'));
+
+test('extracts a user', async () => {
+  const { object } = await generateObject({
+    model: openai('gpt-4o'),
+    schema: z.object({ name: z.string(), email: z.string().email() }),
+    prompt: 'Extract the user from this email…',
+  });
+
+  expect(object.email).toContain('@');
+});`,
+  },
+  {
+    id: 'errors',
+    label: 'Rate limits',
+    logos: [],
+    badge: '429',
+    caption: "The SDKs' own error classes, with <code>retry-after</code> headers. Every retry is recorded.",
+    guide: 'simulate-llm-errors/',
+    code: `test('gives up after the SDK retries', async () => {
+  llmao.configure({ failures: { rateLimit: 1 } });
+
+  await expect(classify('hi')).rejects.toBeInstanceOf(OpenAI.RateLimitError);
+  expect(llmao.calls).toHaveLength(3); // the first attempt plus 2 retries
 });
-\`\`\``);
+
+test('recovers when the retry works', async () => {
+  llmao.configure({ script: [{ error: 'rate_limit', once: true }, { text: 'billing' }] });
+
+  expect(await classify('charged twice')).toBe('billing');
+});`,
+  },
+  {
+    id: 'node',
+    label: 'node:test',
+    logos: ['node'],
+    caption: 'No module mocking: run the fake API in the test process and point the SDKs at it.',
+    guide: 'test-llm-code-any-runner/',
+    code: `import { serve } from 'llmao/server';
+import * as llmao from 'llmao/testing';
+
+const server = await serve({ port: 0 });
+process.env.OPENAI_BASE_URL = \`\${server.url}/v1\`;
+process.env.ANTHROPIC_BASE_URL = server.url;
+
+test('classifies tickets', async () => {
+  const { classify } = await import('./support.js');
+  llmao.configure({ script: [{ text: 'shipping' }] });
+
+  assert.equal(await classify('My order never arrived'), 'shipping');
+});`,
+  },
+];
 
 const RECIPE_LOGOS = {
   'mock-openai-jest': ['jest', 'openai'],
@@ -225,6 +339,21 @@ const useCases = [
   )
   .join('\n');
 
+const tabs = `<div class="tabs" data-tabs>
+  <div class="tab-list" role="tablist" aria-label="Examples">
+    ${EXAMPLES.map(
+      (example, index) =>
+        `<button type="button" role="tab" id="tab-${example.id}" aria-controls="panel-${example.id}" aria-selected="${index === 0}" tabindex="${index === 0 ? 0 : -1}">${example.badge ? `<span class="status-badge" style="font-size:11px;padding:1px 6px">${example.badge}</span>` : example.logos.map((id) => logo(id, { withLabel: false })).join('')}${example.label}</button>`,
+    ).join('')}
+  </div>
+  ${EXAMPLES.map(
+    (example, index) => `<div class="tab-panel" role="tabpanel" id="panel-${example.id}" aria-labelledby="tab-${example.id}"${index === 0 ? '' : ' hidden'}>
+    <p>${example.caption} <a href="${SITE}/${example.guide}">Read the guide →</a></p>
+    ${marked.parse('```ts\n' + example.code + '\n```')}
+  </div>`,
+  ).join('')}
+</div>`;
+
 const landing = `<main class="landing">
 <section class="hero">
   <div class="hero-copy">
@@ -270,7 +399,7 @@ ${useCases}
 <section id="docs">
   <h2>Mock LLMs in your tests</h2>
   <p class="section-lead">Swap the SDK your app already uses for llmao, script the answers, simulate rate limits and outages, and check what your app sent. No API keys in CI, no flaky tests, no bill.</p>
-  ${snippet}
+  ${tabs}
   <h3 class="guides-title">Guides</h3>
   <div class="cards">${cards}</div>
 </section>

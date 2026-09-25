@@ -176,15 +176,10 @@ main.doc h2 {
 }
 
 .cta-card {
-  position: relative;
-  padding: 26px;
-  border-radius: 20px;
+  padding: 24px;
+  border-radius: 16px;
   background: var(--surface);
-  border: 1px solid transparent;
-  background-image: linear-gradient(var(--surface), var(--surface)), linear-gradient(135deg, #7c3aed, #ec4899, #f59e0b);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  box-shadow: 0 20px 60px -24px rgba(124, 58, 237, 0.45);
+  border: 1px solid var(--border);
 }
 
 .cta-label {
@@ -251,9 +246,13 @@ main.doc h2 {
 }
 
 .button.primary {
-  border: none;
-  color: #fff;
-  background: linear-gradient(90deg, #7c3aed, #ec4899);
+  border-color: var(--text);
+  color: var(--bg);
+  background: var(--text);
+}
+
+.button.primary:hover {
+  opacity: 0.88;
 }
 
 .cta-points {
@@ -333,12 +332,11 @@ main.doc h2 {
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .use-case:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent);
+  border-color: var(--muted);
 }
 
 .use-case-icon {
@@ -480,8 +478,8 @@ button:hover {
 }
 
 #ask button[type='submit'] {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  color: #fff;
+  background: var(--text);
+  color: var(--bg);
   border: none;
   padding: 8px 18px;
 }
@@ -607,4 +605,60 @@ footer {
   text-align: center;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* --- Code tabs ------------------------------------------------------------------ */
+
+.tabs {
+  margin-top: 20px;
+}
+
+.tab-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 10px 12px;
+  margin-bottom: -1px;
+}
+
+.tab-list button:hover {
+  color: var(--text);
+}
+
+.tab-list button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.tab-list .brand-logo svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tab-list .brand-text {
+  font-size: 12px;
+  padding: 0 6px;
+}
+
+.tab-panel pre.shiki {
+  margin-top: 14px;
+}
+
+.tab-panel p {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 10px 0 0;
 }

@@ -111,3 +111,26 @@ if (params.get('q')) {
   if (MODELS[params.get('m')]) modelSelect.value = params.get('m');
   run(Number(params.get('s')) || undefined);
 }
+
+// Code example tabs
+for (const container of document.querySelectorAll('[data-tabs]')) {
+  const tabs = [...container.querySelectorAll('[role="tab"]')];
+  const select = (tab) => {
+    for (const other of tabs) {
+      const selected = other === tab;
+      other.setAttribute('aria-selected', String(selected));
+      other.tabIndex = selected ? 0 : -1;
+      document.getElementById(other.getAttribute('aria-controls')).hidden = !selected;
+    }
+  };
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', (event) => {
+      const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+      if (!offset) return;
+      const next = tabs[(index + offset + tabs.length) % tabs.length];
+      select(next);
+      next.focus();
+    });
+  });
+}
