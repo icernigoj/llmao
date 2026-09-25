@@ -43,13 +43,13 @@ function parseFrontMatter(source) {
   return { meta, body: source.slice(match[0].length) };
 }
 
-// --- Logos (Simple Icons, CC0). OpenAI asked to be removed from that set, so it is text only ---
+// --- Logos: Simple Icons (CC0), except OpenAI, which is not in that set: its official files, unmodified, under OpenAI's brand terms ---
 
 const BRANDS = {
   jest: { icon: siJest, label: 'Jest' },
   vitest: { icon: siVitest, label: 'Vitest' },
   node: { icon: siNodedotjs, label: 'node:test' },
-  openai: { icon: null, label: 'OpenAI' },
+  openai: { image: 'openai-blossom', label: 'OpenAI' },
   anthropic: { icon: siAnthropic, label: 'Anthropic', mono: true },
   aisdk: { icon: siVercel, label: 'AI SDK', mono: true },
   python: { icon: siPython, label: 'Python' },
@@ -57,7 +57,11 @@ const BRANDS = {
 
 function logo(id, { withLabel = true } = {}) {
   const brand = BRANDS[id];
-  // Brands without a free logo are shown by name
+  if (brand.image) {
+    // Official files as provided: black on light backgrounds, white on dark ones
+    const picture = `<picture class="official-logo"><source media="(prefers-color-scheme: dark)" srcset="${SITE}/brand/${brand.image}-white.svg"><img src="${SITE}/brand/${brand.image}-black.svg" alt="" width="40" height="40"></picture>`;
+    return `<span class="brand-logo" title="${brand.label}">${picture}${withLabel ? `<span>${brand.label}</span>` : ''}</span>`;
+  }
   if (!brand.icon) return `<span class="brand-logo brand-text">${brand.label}</span>`;
   const svg = `<svg viewBox="0 0 24 24" aria-hidden="true" style="${brand.mono ? '' : `color:#${brand.icon.hex}`}"><path d="${brand.icon.path}"/></svg>`;
   return `<span class="brand-logo" title="${brand.label}">${svg}${withLabel ? `<span>${brand.label}</span>` : ''}</span>`;
@@ -107,6 +111,7 @@ function layout({ title, description, path, body, scripts = '' }) {
 ${body}
 <footer>
   <p><a href="${REPO}">llmao</a> is MIT licensed. It is a joke, and also a real testing tool. · <a href="${SITE}/llms.txt">llms.txt</a></p>
+  <p class="legal">OpenAI, Anthropic, Vercel, Jest, Vitest, Node.js, Python and other names and logos are trademarks of their respective owners, used only to show compatibility. llmao is not affiliated with or endorsed by them.</p>
 </footer>
 ${scripts}
 </body>
@@ -159,7 +164,7 @@ const EXAMPLES = [
   {
     id: 'jest',
     label: 'Jest',
-    logos: ['jest'],
+    logos: ['jest', 'openai'],
     caption: 'Mock <code>openai</code> with one line. Your app keeps calling <code>new OpenAI()</code>.',
     guide: 'mock-openai-jest/',
     code: `jest.mock('openai', () => require('llmao/openai'));
@@ -179,7 +184,7 @@ test('classifies shipping tickets', async () => {
   {
     id: 'vitest',
     label: 'Vitest',
-    logos: ['vitest'],
+    logos: ['vitest', 'openai'],
     caption: 'Same idea with <code>vi.mock</code>. Test mode creates no timers, so fake timers work too.',
     guide: 'mock-openai-vitest/',
     code: `import * as llmao from 'llmao/testing';
@@ -447,6 +452,7 @@ for (const file of readdirSync('dist').filter((name) => name.endsWith('.mjs'))) 
   cpSync(join('dist', file), join(OUT, 'lib', file));
 }
 copyFileSync('assets/favicon.ico', join(OUT, 'favicon.ico'));
+cpSync('site/brand', join(OUT, 'brand'), { recursive: true });
 writeFileSync(join(OUT, '.nojekyll'), '');
 writeFileSync(
   join(OUT, '404.html'),

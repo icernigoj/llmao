@@ -1,0 +1,1 @@
+Official OpenAI Blossom logo files, downloaded unmodified from https://openai.com/brand/ and used under OpenAI's brand guidelines and Marks usage terms to indicate compatibility with the OpenAI SDK. They are OpenAI's trademarks: do not reuse them from here, get them from OpenAI.

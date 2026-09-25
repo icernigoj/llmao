@@ -315,6 +315,34 @@ main.doc h2 {
   flex: none;
 }
 
+/* The official OpenAI file includes its required clear space, so it is drawn
+   larger and pulled in to line up with the other logos */
+.official-logo img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin: -8px;
+}
+
+.use-case-icon .official-logo img {
+  width: 44px;
+  height: 44px;
+  margin: -9px;
+}
+
+.card-logos .official-logo img,
+.tab-list .official-logo img {
+  width: 32px;
+  height: 32px;
+  margin: -7px;
+}
+
+footer .legal {
+  max-width: 720px;
+  margin: 8px auto 0;
+  font-size: 12.5px;
+}
+
 .use-cases {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
