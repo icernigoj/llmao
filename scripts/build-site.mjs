@@ -55,7 +55,10 @@ function layout({ title, description, path, body, scripts = '' }) {
 <meta name="description" content="${escape(description)}">
 <link rel="canonical" href="${url}">
 <meta name="google-site-verification" content="AW7gF3qFlfkbJ_9RQGB9tSLCO42lvEGnW_jM5OYEZ0Y">
-<link rel="icon" type="image/png" href="${SITE}/assets/icon.png">
+<link rel="icon" href="${SITE}/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="${SITE}/assets/favicon-32.png">
+<link rel="apple-touch-icon" href="${SITE}/assets/apple-touch-icon.png">
+<meta name="theme-color" content="#0d1117">
 <link rel="alternate" type="text/plain" title="llms.txt" href="${SITE}/llms.txt">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="llmao">
@@ -207,7 +210,7 @@ copyFileSync('site/playground.js', join(OUT, 'playground.js'));
 const indexNowKey = readFileSync('site/indexnow-key.txt', 'utf8').trim();
 writeFileSync(join(OUT, `${indexNowKey}.txt`), indexNowKey);
 mkdirSync(join(OUT, 'assets'));
-for (const asset of ['logo-light.png', 'logo-dark.png', 'icon.png', 'social-preview.png', 'demo.gif']) {
+for (const asset of ['logo-light.png', 'logo-dark.png', 'icon.png', 'icon-512.png', 'favicon-32.png', 'apple-touch-icon.png', 'social-preview.png', 'demo.gif']) {
   copyFileSync(join('assets', asset), join(OUT, 'assets', asset));
 }
 // The library itself, for the playground (only the browser-safe ESM chunks)
@@ -217,6 +220,7 @@ for (const file of readdirSync('dist').filter((name) => name.endsWith('.mjs'))) 
   if (/from ["']node:/.test(code)) continue;
   cpSync(join('dist', file), join(OUT, 'lib', file));
 }
+copyFileSync('assets/favicon.ico', join(OUT, 'favicon.ico'));
 writeFileSync(join(OUT, '.nojekyll'), '');
 writeFileSync(
   join(OUT, '404.html'),
