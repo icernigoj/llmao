@@ -202,6 +202,9 @@ writeFileSync(
 
 copyFileSync('site/style.css', join(OUT, 'style.css'));
 copyFileSync('site/playground.js', join(OUT, 'playground.js'));
+// IndexNow (Bing and others): the key file must be served from the site
+const indexNowKey = readFileSync('site/indexnow-key.txt', 'utf8').trim();
+writeFileSync(join(OUT, `${indexNowKey}.txt`), indexNowKey);
 mkdirSync(join(OUT, 'assets'));
 for (const asset of ['logo-light.png', 'logo-dark.png', 'icon.png', 'social-preview.png', 'demo.gif']) {
   copyFileSync(join('assets', asset), join(OUT, 'assets', asset));
