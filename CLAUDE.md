@@ -13,6 +13,7 @@ pnpm build       # tsdown → dist/ (ESM + CJS + types)
 pnpm smoke       # runs dist/ without dev tooling (CI runs it on Node 18, 20, 22, 24)
 pnpm check       # all of the above; runs automatically before npm publish
 vhs assets/demo.tape   # re-records assets/demo.gif (after pnpm build)
+pnpm site         # builds the docs site into site-dist/ (after pnpm build); SITE_URL=http://localhost:4173 to preview locally
 ```
 
 ## Layout
@@ -23,6 +24,7 @@ vhs assets/demo.tape   # re-records assets/demo.gif (after pnpm build)
 - `src/openai.ts`, `src/anthropic.ts`, `src/ai-sdk.ts`: drop-in adapters for the official SDKs
 - `src/server.ts`: HTTP server (`llmao serve`), `src/cli.ts`: the CLI
 - `src/testing.ts` (`llmao/testing`): test mode for Jest/Vitest; its state lives on `globalThis` (`src/testing-store.ts`) so the ESM and CJS builds share it
+- `site/content/*.md`: docs pages (one per search people actually make); `scripts/build-site.mjs` also generates llms.txt, llms-full.txt and the sitemap. Deployed to GitHub Pages by `.github/workflows/pages.yml`
 - `scripts/cjs-interop.mjs`: runs after tsdown so `require('llmao/openai')` returns the class, like the official SDKs
 - `src/models.ts`: the joke models (`lmao-1`, `lmao-safe`, `lmao-o1-overthinker`…)
 

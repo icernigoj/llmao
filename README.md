@@ -21,7 +21,9 @@ It is a few hundred lines of regular expressions, and the easiest way to mock LL
 
 <p align="center"><img src="https://raw.githubusercontent.com/icernigoj/llmao/main/assets/demo.gif" alt="llmao answering questions in the terminal: counting the r in strawberry, overthinking 2 + 2 into 3, and refusing to reverse a word for safety reasons" width="760"></p>
 
-Try it: `npx llmao "how many r are in strawberry?"`. Run it a few times: sometimes there are 2.
+Try it: `npx llmao "how many r are in strawberry?"`, or in your browser at the **[playground](https://icernigoj.github.io/llmao/)**. Run it a few times: sometimes there are 2.
+
+**Guides:** [Mock OpenAI in Jest](https://icernigoj.github.io/llmao/mock-openai-jest/) · [in Vitest](https://icernigoj.github.io/llmao/mock-openai-vitest/) · [Mock the Anthropic SDK](https://icernigoj.github.io/llmao/mock-anthropic-sdk/) · [Test the Vercel AI SDK](https://icernigoj.github.io/llmao/test-vercel-ai-sdk/) · [Test rate limits and retries](https://icernigoj.github.io/llmao/simulate-llm-errors/) · [node:test and other runners](https://icernigoj.github.io/llmao/test-llm-code-any-runner/) · [Fake OpenAI API server](https://icernigoj.github.io/llmao/fake-openai-api-server/)
 
 ## Why
 
@@ -65,7 +67,7 @@ test('survives a rate limit', async () => {
 });
 ```
 
-The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK providers `@ai-sdk/openai` and `@ai-sdk/anthropic` (`llmao/ai-sdk`). Importing `llmao/testing` turns on test mode: every client answers instantly, never hallucinates, uses what you pass to `configure()` and records its calls in `llmao.calls` (with the provider, model, prompt, system prompt, tools, the original request and the answer).
+The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK providers `@ai-sdk/openai` and `@ai-sdk/anthropic` (`llmao/ai-sdk`). The AI SDK is ESM-only, so with Jest it needs Jest's ESM mode and `jest.unstable_mockModule` ([example](https://icernigoj.github.io/llmao/test-vercel-ai-sdk/)). Importing `llmao/testing` turns on test mode: every client answers instantly, never hallucinates, uses what you pass to `configure()` and records its calls in `llmao.calls` (with the provider, model, prompt, system prompt, tools, the original request and the answer).
 
 Test mode creates no timers, so it works with `jest.useFakeTimers()` and `vi.useFakeTimers()` out of the box. To test a loading state or your own timeout, turn the latency back on with `configure({ speed: 'realistic' })` and move the clock with `vi.advanceTimersByTimeAsync()`.
 
