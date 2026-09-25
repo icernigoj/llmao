@@ -6,15 +6,16 @@
 </picture>
 
 
-**An AI that isn't.**
+**Just as wrong. Way cheaper.**
 
-It streams tokens, shows its reasoning, calls your tools, reports token usage and confidently hallucinates.<br>
-It is also a few hundred lines of regular expressions.
+A fake LLM that streams tokens, shows its reasoning, calls your tools and confidently hallucinates.<br>
+It is a few hundred lines of regular expressions, and the easiest way to mock LLMs in your tests.
 
 [![npm](https://img.shields.io/npm/v/llmao)](https://www.npmjs.com/package/llmao)
 ![GPUs](https://img.shields.io/badge/GPUs-0-brightgreen)
 ![parameters](https://img.shields.io/badge/parameters-~40_regexes-blue)
 ![API keys](https://img.shields.io/badge/API_keys-not_needed-orange)
+![tests](https://img.shields.io/badge/works_with-Jest_·_Vitest_·_node:test-8A2BE2)
 
 </div>
 
@@ -28,71 +29,10 @@ Every app needs AI now. **llmao gives your app the AI experience**: the typing e
 
 It is a joke, but it is also a real tool:
 
-- 🧪 **Testing and mocking**: scripted answers, structured output, simulated rate limits and outages, and an HTTP server that any SDK in any language can point at. [See below](#testing-and-mocking).
+- 🧪 **Testing**: mock `openai`, `@anthropic-ai/sdk` or the AI SDK in Jest and Vitest with one line, script the answers, simulate rate limits and outages, and check what your app sent. No API keys in CI, no flaky tests, no bill. [See below](#testing-and-mocking).
 - 🎨 **Building chat UIs**: real streaming, reasoning and tool calls, with realistic latency, for free
 - 🎤 **Demos and workshops** that can't fail because the Wi-Fi did, or because someone forgot the API key
 - 🤡 **Satire**: ship "AI-powered" features to people who insist on it
-
-## Drop-in replacement for the SDKs you already use
-
-### OpenAI
-
-```ts
-import OpenAI from 'llmao/openai'; // was: import OpenAI from 'openai'
-
-const client = new OpenAI();
-const completion = await client.chat.completions.create({
-  model: 'gpt-4o', // any model id works
-  messages: [{ role: 'user', content: 'Is 7919 prime?' }],
-});
-// → "7919 is a prime number."
-```
-
-Streaming (`stream: true`), tool calls (`tools`, `tool_choice`), `stream_options.include_usage` and `AbortSignal` work like the real thing.
-
-### Anthropic
-
-```ts
-import Anthropic from 'llmao/anthropic'; // was: import Anthropic from '@anthropic-ai/sdk'
-
-const client = new Anthropic();
-const message = await client.messages.create({
-  model: 'claude-whatever',
-  max_tokens: 1024,
-  thinking: { type: 'enabled', budget_tokens: 1024 },
-  messages: [{ role: 'user', content: 'What is 2 + 2?' }],
-});
-// → [{ type: 'thinking', thinking: 'Carrying the one…' }, { type: 'text', text: '2 + 2 = 4' }]
-```
-
-`stream: true`, `messages.stream()` with `.on('text')` / `finalMessage()`, extended thinking and `tool_use` loops are supported.
-
-### Vercel AI SDK
-
-```ts
-import { generateText, stepCountIs, tool } from 'ai';
-import { llmao } from 'llmao/ai-sdk';
-import { z } from 'zod';
-
-const { text } = await generateText({
-  model: llmao('lmao-1'),
-  prompt: "What's the weather in Madrid?",
-  tools: {
-    weather: tool({
-      description: 'Get the weather in a location',
-      inputSchema: z.object({ location: z.string() }),
-      execute: async ({ location }) => ({ location, temperature: 31 }),
-    }),
-  },
-  stopWhen: stepCountIs(5),
-});
-// llmao calls weather({ location: 'Madrid' }), reads the result and answers:
-// → "According to `weather`: location: Madrid, temperature: 31."
-```
-
-Works with `generateText`, `streamText`, `useChat`, multi-step agents, and even `embed` (the embeddings are word hashes: not semantic at all, but they kind of work).
-
-The adapters are checked against the official SDK types on every CI run, so a response from llmao is assignable to `OpenAI.ChatCompletion` and `Anthropic.Message`.
 
 ## Testing and mocking
 
@@ -106,6 +46,7 @@ vi.mock('openai', () => import('llmao/openai'));
 // Jest
 jest.mock('openai', () => require('llmao/openai'));
 
+import OpenAI from 'openai'; // this is llmao now
 import * as llmao from 'llmao/testing';
 import { classify } from '../src/support'; // uses `new OpenAI()` internally
 
@@ -128,7 +69,23 @@ The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK pr
 
 Test mode creates no timers, so it works with `jest.useFakeTimers()` and `vi.useFakeTimers()` out of the box. To test a loading state or your own timeout, turn the latency back on with `configure({ speed: 'realistic' })` and move the clock with `vi.advanceTimersByTimeAsync()`.
 
-Everything below works the same in the core API, the three SDK adapters and the HTTP server.
+**Why not a `jest.fn()`?** A hand-written mock has to fake the whole response (`id`, `choices`, `usage`, streaming chunks, tool calls), it drifts when the SDK changes, and it can't stream, retry or rate limit. llmao behaves like the real API, and its responses are checked against the official SDK types on every CI run.
+
+### Any other test runner
+
+With `node:test`, Mocha or anything else, run the server in the test process and point the SDKs at it with their environment variables. No mocking and no changes to your app:
+
+```ts
+import { serve } from 'llmao/server';
+import * as llmao from 'llmao/testing';
+
+const server = await serve({ port: 0 });
+process.env.OPENAI_BASE_URL = `${server.url}/v1`;
+process.env.ANTHROPIC_BASE_URL = server.url;
+// configure(), calls and lastCall() work the same
+```
+
+Set the variables before your app creates its clients. Everything below works the same in the core API, the three SDK adapters and the HTTP server.
 
 ### Scripted answers
 
@@ -190,6 +147,69 @@ client = OpenAI(base_url="http://127.0.0.1:4141/v1", api_key="llmao")
 ```
 
 It serves `/v1/chat/completions`, `/v1/messages`, `/v1/embeddings` and `/v1/models`, with streaming. In JSON scripts, `when` can be a `"/regex/flags"` string. In Node tests, start it on a free port with `import { serve } from 'llmao/server'` and `await serve({ port: 0 })`.
+
+## Drop-in replacement for the SDKs you already use
+
+For demos, UI work and running your app without an API key, change the import. (In tests, mock the module instead, as shown above.)
+
+### OpenAI
+
+```ts
+import OpenAI from 'llmao/openai'; // was: import OpenAI from 'openai'
+
+const client = new OpenAI();
+const completion = await client.chat.completions.create({
+  model: 'gpt-4o', // any model id works
+  messages: [{ role: 'user', content: 'Is 7919 prime?' }],
+});
+// → "7919 is a prime number."
+```
+
+Streaming (`stream: true`), tool calls (`tools`, `tool_choice`), `stream_options.include_usage` and `AbortSignal` work like the real thing.
+
+### Anthropic
+
+```ts
+import Anthropic from 'llmao/anthropic'; // was: import Anthropic from '@anthropic-ai/sdk'
+
+const client = new Anthropic();
+const message = await client.messages.create({
+  model: 'claude-whatever',
+  max_tokens: 1024,
+  thinking: { type: 'enabled', budget_tokens: 1024 },
+  messages: [{ role: 'user', content: 'What is 2 + 2?' }],
+});
+// → [{ type: 'thinking', thinking: 'Carrying the one…' }, { type: 'text', text: '2 + 2 = 4' }]
+```
+
+`stream: true`, `messages.stream()` with `.on('text')` / `finalMessage()`, extended thinking and `tool_use` loops are supported.
+
+### Vercel AI SDK
+
+```ts
+import { generateText, stepCountIs, tool } from 'ai';
+import { llmao } from 'llmao/ai-sdk';
+import { z } from 'zod';
+
+const { text } = await generateText({
+  model: llmao('lmao-1'),
+  prompt: "What's the weather in Madrid?",
+  tools: {
+    weather: tool({
+      description: 'Get the weather in a location',
+      inputSchema: z.object({ location: z.string() }),
+      execute: async ({ location }) => ({ location, temperature: 31 }),
+    }),
+  },
+  stopWhen: stepCountIs(5),
+});
+// llmao calls weather({ location: 'Madrid' }), reads the result and answers:
+// → "According to `weather`: location: Madrid, temperature: 31."
+```
+
+Works with `generateText`, `streamText`, `useChat`, multi-step agents, and even `embed` (the embeddings are word hashes: not semantic at all, but they kind of work).
+
+The adapters are checked against the official SDK types on every CI run, so a response from llmao is assignable to `OpenAI.ChatCompletion` and `Anthropic.Message`.
 
 ## Models
 

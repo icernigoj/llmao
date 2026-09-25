@@ -15,7 +15,7 @@ const cyan = paint(36);
 const yellow = paint(33);
 
 const HELP = `
-${bold('llmao')}: an AI that isn't
+${bold('llmao')}: just as wrong, way cheaper
 
 ${bold('Usage')}
   llmao "is 7 prime?"            Ask a question

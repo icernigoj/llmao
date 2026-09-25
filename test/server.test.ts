@@ -2,6 +2,7 @@ import RealAnthropic from '@anthropic-ai/sdk';
 import RealOpenAI from 'openai';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { serve, type RunningServer } from '../src/server';
+import * as testing from '../src/testing';
 
 // The official SDKs, talking to llmao over HTTP
 let server: RunningServer;
@@ -122,5 +123,29 @@ describe('HTTP details', () => {
     const response = await fetch(`${server.url}/v1/chat/completions`, { method: 'OPTIONS' });
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
+  });
+});
+
+describe('any test runner: environment variables + llmao/testing', () => {
+  it('lets unmodified SDK clients talk to llmao and be scripted from the test', async () => {
+    process.env.OPENAI_BASE_URL = `${server.url}/v1`;
+    process.env.ANTHROPIC_BASE_URL = server.url;
+    try {
+      // Clients created the way an app would: no baseURL in the code
+      const app = { openai: new RealOpenAI({ apiKey: 'sk-app' }), anthropic: new RealAnthropic({ apiKey: 'sk-ant-app' }) };
+      testing.configure({ script: [{ text: 'scripted from the test' }] });
+
+      const completion = await app.openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'user', content: 'hello' }] });
+      expect(completion.choices[0]?.message.content).toBe('scripted from the test');
+      expect(testing.lastCall()).toMatchObject({ provider: 'openai', model: 'gpt-4o', prompt: 'hello' });
+
+      const message = await app.anthropic.messages.create({ model: 'claude', max_tokens: 10, messages: [{ role: 'user', content: 'hola' }] });
+      expect(message.content[0]).toMatchObject({ type: 'text', text: 'scripted from the test' });
+      expect(testing.lastCall()).toMatchObject({ provider: 'anthropic', prompt: 'hola' });
+    } finally {
+      testing.reset();
+      delete process.env.OPENAI_BASE_URL;
+      delete process.env.ANTHROPIC_BASE_URL;
+    }
   });
 });

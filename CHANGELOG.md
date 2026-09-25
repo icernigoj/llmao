@@ -5,6 +5,8 @@
 - **`llmao/testing`** for Jest and Vitest: mock `openai`, `@anthropic-ai/sdk`, `@ai-sdk/openai` or `@ai-sdk/anthropic` with llmao, then `configure()` answers and failures from the test and assert on the recorded `calls`. Test mode is instant and never hallucinates
 - `require('llmao/openai')` and `require('llmao/anthropic')` now return the client class, like the official SDKs, so `jest.mock('openai', () => require('llmao/openai'))` works
 - `llmao/ai-sdk` exports `openai`, `createOpenAI`, `anthropic` and `createAnthropic`, plus the providers' method names (`chat`, `responses`, `messages`, `embedding`…)
+- Works with any test runner (`node:test`, Mocha…) by pointing the SDKs at `llmao/server` with `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL`
+- New tagline: "Just as wrong. Way cheaper."
 
 ## 0.2.1
 
@@ -22,4 +24,4 @@ llmao is now a real testing tool (it is still a joke).
 
 ## 0.1.0
 
-First release: an AI that isn't.
+First release.
