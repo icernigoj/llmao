@@ -10,6 +10,8 @@ import { siAnthropic, siJest, siNodedotjs, siPython, siVercel, siVitest } from '
 // SITE_URL lets you preview locally, e.g. SITE_URL=http://localhost:4173
 const SITE = (process.env.SITE_URL ?? 'https://icernigoj.github.io/llmao').replace(/\/$/, '');
 const REPO = 'https://github.com/icernigoj/llmao';
+// Google Analytics 4 measurement ID, or empty to build without analytics
+const GA_ID = process.env.GA_ID ?? '';
 const OUT = 'site-dist';
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -98,6 +100,8 @@ function layout({ title, description, path, body, scripts = '' }) {
 <meta name="twitter:description" content="${escape(description)}">
 <meta name="twitter:image" content="${SITE}/assets/social-preview.png">
 <link rel="stylesheet" href="${SITE}/style.css">
+${GA_ID ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${GA_ID}');</script>` : ''}
 </head>
 <body>
 <header class="top">
