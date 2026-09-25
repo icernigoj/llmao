@@ -2,6 +2,8 @@ import { think } from './brain';
 import { LlmaoAPIError } from './errors';
 import { getModel, type ModelId } from './models';
 import { createRng, hashString, randomSeed, type Rng } from './rng';
+import { scriptContext } from './script';
+import { testingStore, type Provider, type RecordedCall } from './testing-store';
 import { countTokens, tokenize } from './tokens';
 import type { Answer, FailureKind, Failures, LlmaoEvent, LlmaoOptions, Speed, ThinkRequest, Thought, Turn, Usage } from './types';
 
@@ -9,6 +11,8 @@ export interface EngineOptions extends LlmaoOptions {
   model?: ModelId;
   /** Retry number, so that retries don't always hit the same simulated failure */
   attempt?: number;
+  /** Which adapter made the request and its original parameters, for `llmao/testing` */
+  trace?: { provider: Provider; params: unknown };
 }
 
 type Range = readonly [number, number];
@@ -91,8 +95,25 @@ export interface Response {
   wait(signal?: AbortSignal): Promise<Answer>;
 }
 
-export function respond(request: ThinkRequest, options: EngineOptions = {}): Response {
+export function respond(request: ThinkRequest, engineOptions: EngineOptions = {}): Response {
+  // In tests, `llmao/testing` configuration wins over whatever the app passed
+  const testing = testingStore();
+  const options = testing.enabled ? { ...engineOptions, ...stripUndefined(testing.overrides) } : engineOptions;
   const model = options.model ?? 'lmao-1';
+
+  const record = (outcome: Pick<RecordedCall, 'answer' | 'failure' | 'error'>) => {
+    if (!testing.enabled) return;
+    testing.calls.push({
+      provider: options.trace?.provider ?? 'llmao',
+      model,
+      prompt: scriptContext(request.turns).prompt,
+      system: request.turns.flatMap((turn) => (turn.role === 'system' ? [turn.text] : [])).join('\n'),
+      turns: request.turns,
+      tools: request.tools ?? [],
+      params: options.trace?.params ?? request,
+      ...outcome,
+    });
+  };
   const card = getModel(model);
   const settings = { ...card.defaults, ...stripUndefined(options) };
   const temperature = Math.max(0, Math.min(2, settings.temperature ?? 1));
@@ -102,17 +123,23 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
   const timingRng = createRng(seed ^ 0x9e3779b9);
   const failureRng = createRng((seed ^ 0x85ebca6b ^ Math.imul(options.attempt ?? 0, 0x27d4eb2f)) >>> 0);
 
-  const thought = think(request, {
-    temperature,
-    hallucinationRate: settings.hallucinationRate ?? 0.05 * temperature,
-    language: settings.language ?? 'auto',
-    reasoning: settings.reasoning ?? true,
-    persona: card.persona,
-    rng,
-    now: new Date(),
-    script: settings.script,
-    unscripted: settings.unscripted,
-  });
+  let thought: Thought;
+  try {
+    thought = think(request, {
+      temperature,
+      hallucinationRate: settings.hallucinationRate ?? 0.05 * temperature,
+      language: settings.language ?? 'auto',
+      reasoning: settings.reasoning ?? true,
+      persona: card.persona,
+      rng,
+      now: new Date(),
+      script: settings.script,
+      unscripted: settings.unscripted,
+    });
+  } catch (error) {
+    record({ error });
+    throw error;
+  }
   const failure = thought.failure ?? rollFailure(settings.failures, failureRng);
 
   const answer: Answer = {
@@ -126,6 +153,7 @@ export function respond(request: ThinkRequest, options: EngineOptions = {}): Res
     ...(thought.object !== undefined ? { object: thought.object } : {}),
     usage: computeUsage(request, thought),
   };
+  record(failure ? { failure } : { answer });
 
   const speed = SPEEDS[settings.speed ?? 'realistic'];
 

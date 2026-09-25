@@ -96,6 +96,38 @@ The adapters are checked against the official SDK types on every CI run, so a re
 
 ## Testing and mocking
 
+### Jest and Vitest: mock the SDK your app already uses
+
+No changes to your app: swap the official SDK for llmao in the test, then script the answers and check what your app sent.
+
+```ts
+// Vitest
+vi.mock('openai', () => import('llmao/openai'));
+// Jest
+jest.mock('openai', () => require('llmao/openai'));
+
+import * as llmao from 'llmao/testing';
+import { classify } from '../src/support'; // uses `new OpenAI()` internally
+
+beforeEach(() => llmao.reset());
+
+test('classifies shipping tickets', async () => {
+  llmao.configure({ script: [{ when: /never arrived/i, text: 'shipping' }] });
+
+  expect(await classify('My order never arrived')).toBe('shipping');
+  expect(llmao.lastCall()).toMatchObject({ model: 'gpt-4o', prompt: 'My order never arrived' });
+});
+
+test('survives a rate limit', async () => {
+  llmao.configure({ failures: { rateLimit: 1 } });
+  await expect(classify('hi')).rejects.toBeInstanceOf(OpenAI.RateLimitError);
+});
+```
+
+The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK providers `@ai-sdk/openai` and `@ai-sdk/anthropic` (`llmao/ai-sdk`). Importing `llmao/testing` turns on test mode: every client answers instantly, never hallucinates, uses what you pass to `configure()` and records its calls in `llmao.calls` (with the provider, model, prompt, system prompt, tools, the original request and the answer).
+
+Test mode creates no timers, so it works with `jest.useFakeTimers()` and `vi.useFakeTimers()` out of the box. To test a loading state or your own timeout, turn the latency back on with `configure({ speed: 'realistic' })` and move the clock with `vi.advanceTimersByTimeAsync()`.
+
 Everything below works the same in the core API, the three SDK adapters and the HTTP server.
 
 ### Scripted answers

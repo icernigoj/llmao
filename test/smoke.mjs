@@ -56,4 +56,21 @@ try {
   await server.close();
 }
 
+// CommonJS: require() returns the class, like the official SDKs
+const { createRequire } = await import('node:module');
+const require = createRequire(import.meta.url);
+const OpenAICjs = require('../dist/openai.cjs');
+assert.equal(typeof OpenAICjs, 'function');
+assert.equal(OpenAICjs.default, OpenAICjs);
+assert.equal(typeof require('../dist/anthropic.cjs'), 'function');
+
+// Test mode, shared between the ESM and CJS builds
+const testing = await import('../dist/testing.mjs');
+testing.configure({ script: [{ text: 'scripted' }] });
+const cjsCompletion = await new OpenAICjs().chat.completions.create({ model: 'x', messages: [{ role: 'user', content: 'hi' }] });
+assert.equal(cjsCompletion.choices[0].message.content, 'scripted');
+assert.equal(testing.lastCall().provider, 'openai');
+testing.reset();
+testing.disable();
+
 console.log(`smoke ok on node ${process.version}`);

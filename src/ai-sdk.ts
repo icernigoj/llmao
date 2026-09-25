@@ -165,6 +165,7 @@ class LlmaoLanguageModel implements LanguageModelV4 {
         temperature: options.temperature ?? this.options.temperature,
         seed: options.seed ?? this.options.seed,
         reasoning: options.reasoning === 'none' ? false : this.options.reasoning,
+        trace: { provider: 'ai-sdk', params: { ...options, abortSignal: undefined } },
       },
     );
   }
@@ -286,20 +287,48 @@ export interface LlmaoProvider extends ProviderV4 {
   (modelId?: ModelId): LanguageModelV4;
   languageModel(modelId?: ModelId): LanguageModelV4;
   embeddingModel(modelId?: string): EmbeddingModelV4;
+  /* Aliases of the official providers' methods, so llmao can stand in for them */
+  chat(modelId?: ModelId): LanguageModelV4;
+  completion(modelId?: ModelId): LanguageModelV4;
+  responses(modelId?: ModelId): LanguageModelV4;
+  messages(modelId?: ModelId): LanguageModelV4;
+  embedding(modelId?: string): EmbeddingModelV4;
+  textEmbedding(modelId?: string): EmbeddingModelV4;
+  textEmbeddingModel(modelId?: string): EmbeddingModelV4;
+  image(modelId: string): never;
 }
 
 export function createLlmao(options: EngineOptions = {}): LlmaoProvider {
   const languageModel = (modelId: ModelId = 'lmao-1') => new LlmaoLanguageModel(modelId, options);
+  const embeddingModel = (modelId = 'lmao-embed') => new LlmaoEmbeddingModel(modelId);
+  const imageModel = (modelId: string): never => {
+    throw new NoSuchModelError({ modelId, modelType: 'imageModel', message: 'llmao cannot draw. It can barely count.' });
+  };
 
   return Object.assign(languageModel, {
     specificationVersion: 'v4' as const,
     languageModel,
-    embeddingModel: (modelId = 'lmao-embed') => new LlmaoEmbeddingModel(modelId),
-    imageModel: (modelId: string): never => {
-      throw new NoSuchModelError({ modelId, modelType: 'imageModel', message: 'llmao cannot draw. It can barely count.' });
-    },
+    chat: languageModel,
+    completion: languageModel,
+    responses: languageModel,
+    messages: languageModel,
+    embeddingModel,
+    embedding: embeddingModel,
+    textEmbedding: embeddingModel,
+    textEmbeddingModel: embeddingModel,
+    imageModel,
+    image: imageModel,
   });
 }
 
 /** The default llmao provider */
 export const llmao = createLlmao();
+
+/*
+ * Same names as `@ai-sdk/openai` and `@ai-sdk/anthropic`, so tests can swap
+ * them out: vi.mock('@ai-sdk/openai', () => import('llmao/ai-sdk'))
+ */
+export const openai = llmao;
+export const createOpenAI = createLlmao;
+export const anthropic = llmao;
+export const createAnthropic = createLlmao;

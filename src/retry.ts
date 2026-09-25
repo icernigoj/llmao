@@ -1,5 +1,6 @@
 import type { Response } from './engine';
 import { LlmaoAPIError } from './errors';
+import { testingStore } from './testing-store';
 import type { Speed } from './types';
 
 const BASE_DELAY: Record<Speed, number> = { instant: 0, fast: 50, realistic: 500, dramatic: 1000 };
@@ -33,6 +34,9 @@ export async function withRetries(
     toError,
   }: { maxRetries: number; speed?: Speed; signal?: AbortSignal; toError: (error: LlmaoAPIError) => Error },
 ): Promise<Response> {
+  const testing = testingStore();
+  const backoffSpeed = (testing.enabled ? testing.overrides.speed : undefined) ?? speed;
+
   for (let retry = 0; ; retry++) {
     const response = attempt(retry);
     if (!response.failure) return response;
@@ -42,7 +46,7 @@ export async function withRetries(
     } catch (error) {
       if (!(error instanceof LlmaoAPIError)) throw error;
       if (retry >= maxRetries) throw toError(error);
-      await sleep(Math.min(BASE_DELAY[speed] * 2 ** retry, 8000), signal);
+      await sleep(Math.min(BASE_DELAY[backoffSpeed] * 2 ** retry, 8000), signal);
     }
   }
 }

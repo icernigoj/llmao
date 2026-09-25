@@ -22,6 +22,8 @@ vhs assets/demo.tape   # re-records assets/demo.gif (after pnpm build)
 - `src/engine.ts`: timing, streaming events, usage, simulated failures
 - `src/openai.ts`, `src/anthropic.ts`, `src/ai-sdk.ts`: drop-in adapters for the official SDKs
 - `src/server.ts`: HTTP server (`llmao serve`), `src/cli.ts`: the CLI
+- `src/testing.ts` (`llmao/testing`): test mode for Jest/Vitest; its state lives on `globalThis` (`src/testing-store.ts`) so the ESM and CJS builds share it
+- `scripts/cjs-interop.mjs`: runs after tsdown so `require('llmao/openai')` returns the class, like the official SDKs
 - `src/models.ts`: the joke models (`lmao-1`, `lmao-safe`, `lmao-o1-overthinker`…)
 
 ## Conventions

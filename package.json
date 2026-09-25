@@ -1,6 +1,6 @@
 {
   "name": "llmao",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Fake LLM for fun and for testing: streams, reasons, calls tools, returns structured output and hallucinates, powered by regex. Drop-in OpenAI, Anthropic and Vercel AI SDK clients, plus an OpenAI/Anthropic compatible mock server. No API key.",
   "keywords": [
     "llm",
@@ -11,6 +11,8 @@
     "openai",
     "openai-mock",
     "anthropic",
+    "jest",
+    "vitest",
     "structured-output",
     "mock-server",
     "llm-testing",
@@ -108,10 +110,20 @@
         "default": "./dist/server.cjs"
       }
     },
+    "./testing": {
+      "import": {
+        "types": "./dist/testing.d.mts",
+        "default": "./dist/testing.mjs"
+      },
+      "require": {
+        "types": "./dist/testing.d.cts",
+        "default": "./dist/testing.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && node scripts/cjs-interop.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
@@ -127,6 +139,7 @@
     }
   },
   "devDependencies": {
+    "@ai-sdk/openai": "^4.0.75",
     "@ai-sdk/provider": "^4.0.18",
     "@anthropic-ai/sdk": "^0.128.0",
     "@types/node": "^26.6.2",

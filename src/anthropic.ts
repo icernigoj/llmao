@@ -286,7 +286,7 @@ async function prepare(params: MessageCreateParams, options: ClientOptions, sign
           toolChoice: toToolChoice(params.tool_choice),
           responseFormat: format?.type === 'json_schema' ? { type: 'json', schema: format.schema as JsonSchema | undefined } : undefined,
         },
-        { ...options, model: params.model, temperature: params.temperature ?? options.temperature, attempt },
+        { ...options, model: params.model, temperature: params.temperature ?? options.temperature, attempt, trace: { provider: 'anthropic', params } },
       ),
     { maxRetries: options.maxRetries ?? 2, speed: options.speed, signal, toError: toAnthropicError },
   );
