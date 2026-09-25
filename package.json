@@ -1,6 +1,6 @@
 {
   "name": "llmao",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Fake LLM for testing and for fun: mock OpenAI, Anthropic and the Vercel AI SDK in Jest, Vitest or any test runner. Streams, reasons, calls tools, returns structured output and hallucinates, powered by regex. No API key.",
   "keywords": [
     "llm",

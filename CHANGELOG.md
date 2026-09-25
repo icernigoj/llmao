@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- New skill: rolling dice ("roll a die", "tirá un dado"). It is also the example in the new CONTRIBUTING.md
+- First release published automatically from GitHub Actions, with npm provenance
+
 ## 0.3.0
 
 - **`llmao/testing`** for Jest and Vitest: mock `openai`, `@anthropic-ai/sdk`, `@ai-sdk/openai` or `@ai-sdk/anthropic` with llmao, then `configure()` answers and failures from the test and assert on the recorded `calls`. Test mode is instant and never hallucinates
