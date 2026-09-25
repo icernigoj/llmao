@@ -50,6 +50,11 @@ export interface Failures {
   rateLimit?: number;
   serverError?: number;
   timeout?: number;
+  /**
+   * Seconds rate limits ask clients to wait (the `retry-after` header).
+   * Defaults to 0 at `instant` speed and 20 at `realistic` speed.
+   */
+  retryAfter?: number;
 }
 
 export interface ScriptedReply {
@@ -60,6 +65,8 @@ export interface ScriptedReply {
   object?: unknown;
   /** Fail instead of answering */
   error?: FailureKind;
+  /** For `error: 'rate_limit'`: seconds in the `retry-after` header */
+  retryAfter?: number;
 }
 
 export interface ScriptContext {
@@ -149,6 +156,8 @@ export interface Thought {
   object?: unknown;
   /** Set when the request should fail */
   failure?: FailureKind;
+  /** Scripted `retry-after` for that failure */
+  retryAfter?: number;
 }
 
 export interface Usage {

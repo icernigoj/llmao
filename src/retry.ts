@@ -46,7 +46,10 @@ export async function withRetries(
     } catch (error) {
       if (!(error instanceof LlmaoAPIError)) throw error;
       if (retry >= maxRetries) throw toError(error);
-      await sleep(Math.min(BASE_DELAY[backoffSpeed] * 2 ** retry, 8000), signal);
+      // Like the official SDKs: honor a short retry-after, otherwise back off
+      const retryAfterMs = error.kind === 'rate_limit' ? error.retryAfter * 1000 : 0;
+      const delay = retryAfterMs > 0 && retryAfterMs <= 60_000 ? retryAfterMs : Math.min(BASE_DELAY[backoffSpeed] * 2 ** retry, 8000);
+      await sleep(delay, signal);
     }
   }
 }

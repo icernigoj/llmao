@@ -12,7 +12,7 @@ export interface EngineOptions extends LlmaoOptions {
   /** Retry number, so that retries don't always hit the same simulated failure */
   attempt?: number;
   /** Which adapter made the request and its original parameters, for `llmao/testing` */
-  trace?: { provider: Provider; params: unknown };
+  trace?: { provider: Provider; params: unknown; headers?: Record<string, string> };
 }
 
 type Range = readonly [number, number];
@@ -111,6 +111,8 @@ export function respond(request: ThinkRequest, engineOptions: EngineOptions = {}
       turns: request.turns,
       tools: request.tools ?? [],
       params: options.trace?.params ?? request,
+      headers: options.trace?.headers ?? {},
+      attempt: options.attempt ?? 0,
       ...outcome,
     });
   };
@@ -162,7 +164,7 @@ export function respond(request: ThinkRequest, engineOptions: EngineOptions = {}
 
     if (failure) {
       await pause(failure === 'timeout' ? [speed.firstToken[1] * 3, speed.firstToken[1] * 4] : speed.firstToken);
-      throw new LlmaoAPIError(failure, RETRY_AFTER[settings.speed ?? 'realistic']);
+      throw new LlmaoAPIError(failure, thought.retryAfter ?? settings.failures?.retryAfter ?? RETRY_AFTER[settings.speed ?? 'realistic']);
     }
 
     if (thought.reasoning.length > 0) {

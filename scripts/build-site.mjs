@@ -467,7 +467,7 @@ const facts = `- Install: \`npm install --save-dev llmao\` (Node 18+, zero runti
 - Jest: \`jest.mock('openai', () => require('llmao/openai'))\`. Vitest: \`vi.mock('openai', () => import('llmao/openai'))\`. Same for \`@anthropic-ai/sdk\` → \`llmao/anthropic\`, and \`@ai-sdk/openai\` / \`@ai-sdk/anthropic\` → \`llmao/ai-sdk\` (the AI SDK is ESM-only: in Jest use ESM mode and \`jest.unstable_mockModule\`)
 - \`import * as llmao from 'llmao/testing'\` turns on test mode (instant, deterministic, no timers) and gives \`configure()\`, \`reset()\`, \`calls\` and \`lastCall()\`
 - Scripted answers: \`configure({ script: [{ when: /regex/ | 'substring' | fn, text, toolCalls, object, error, once, afterToolResults }], unscripted: 'error' })\`
-- Simulated failures: \`configure({ failures: { rateLimit, serverError, timeout } })\` throw the SDKs' real error classes (\`OpenAI.RateLimitError\` with status 429 and a retry-after header, \`Anthropic.InternalServerError\`, the AI SDK's \`APICallError\`)
+- Simulated failures: \`configure({ failures: { rateLimit, serverError, timeout, retryAfter } })\` throw the SDKs' real error classes (\`OpenAI.RateLimitError\` with status 429 and a retry-after header, \`Anthropic.InternalServerError\`, the AI SDK's \`APICallError\`)
 - Any language or runner: \`npx llmao serve\` (or \`serve()\` from \`llmao/server\`) is an OpenAI and Anthropic compatible HTTP server; point SDKs at it with \`OPENAI_BASE_URL\` / \`ANTHROPIC_BASE_URL\`
 - Structured output (\`generateObject\`, \`response_format\`, \`output_config\`) returns objects that validate against the schema`;
 

@@ -116,6 +116,7 @@ export interface ChatCompletionChunk {
 
 export interface RequestOptions {
   signal?: AbortSignal;
+  headers?: Record<string, string | undefined>;
 }
 
 export class OpenAIError extends Error {}
@@ -182,6 +183,10 @@ export interface ClientOptions extends EngineOptions {
   apiKey?: string;
   baseURL?: string;
   [key: string]: unknown;
+}
+
+function cleanHeaders(headers: Record<string, string | undefined> | undefined): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers ?? {}).flatMap(([key, value]) => (value === undefined ? [] : [[key.toLowerCase(), value]])));
 }
 
 function textOf(content: unknown): string {
@@ -311,7 +316,7 @@ class Completions {
             temperature: params.temperature ?? this.options.temperature,
             seed: params.seed ?? this.options.seed,
             attempt,
-            trace: { provider: 'openai', params },
+            trace: { provider: 'openai', params, headers: cleanHeaders(options.headers) },
           },
         ),
       { maxRetries: this.options.maxRetries ?? 2, speed: this.options.speed, signal: options.signal, toError: toOpenAIError },

@@ -49,6 +49,7 @@ describe('llmao/testing', () => {
     llmao.configure({ script: [{ error: 'server_error', once: true }, { text: 'other' }] });
     await expect(classify('hello')).resolves.toBe('other');
     expect(llmao.calls.map((call) => call.failure ?? call.answer?.text)).toEqual(['server_error', 'other']);
+    expect(llmao.calls.map((call) => call.attempt)).toEqual([0, 1]);
   });
 
   it('works for the Anthropic SDK', async () => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2
+
+Fixes and additions from using llmao in a real project:
+
+- Types now resolve with the legacy `moduleResolution: "node"` (e.g. `import { serve } from 'llmao/server'` failed to type-check in CommonJS projects). CI now checks every resolution mode
+- Configurable `retry-after`: `failures: { rateLimit: 1, retryAfter: 20 }`, or `{ error: 'rate_limit', retryAfter: 20 }` in a script
+- llmao's OpenAI and Anthropic clients wait a short `retry-after` before retrying, like the official SDKs
+- Recorded calls include the request `headers` (the official SDKs send `x-stainless-retry-count`) and the retry `attempt`
+- Guide: testing retries with `node:test` fake timers, a recipe that now runs in CI
+
 ## 0.3.1
 
 - New skill: rolling dice ("roll a die", "tirá un dado"). It is also the example in the new CONTRIBUTING.md

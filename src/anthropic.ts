@@ -124,6 +124,7 @@ export type MessageStreamEvent =
 
 export interface RequestOptions {
   signal?: AbortSignal;
+  headers?: Record<string, string | undefined>;
 }
 
 export class AnthropicError extends Error {}
@@ -272,7 +273,16 @@ interface Prepared {
   showThinking: boolean;
 }
 
-async function prepare(params: MessageCreateParams, options: ClientOptions, signal?: AbortSignal): Promise<Prepared> {
+function cleanHeaders(headers: Record<string, string | undefined> | undefined): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers ?? {}).flatMap(([key, value]) => (value === undefined ? [] : [[key.toLowerCase(), value]])));
+}
+
+async function prepare(
+  params: MessageCreateParams,
+  options: ClientOptions,
+  signal?: AbortSignal,
+  headers?: Record<string, string | undefined>,
+): Promise<Prepared> {
   const showThinking = params.thinking?.type === 'enabled' || params.thinking?.type === 'adaptive';
   const format = params.output_config?.format;
   const response = await withRetries(
@@ -286,7 +296,7 @@ async function prepare(params: MessageCreateParams, options: ClientOptions, sign
           toolChoice: toToolChoice(params.tool_choice),
           responseFormat: format?.type === 'json_schema' ? { type: 'json', schema: format.schema as JsonSchema | undefined } : undefined,
         },
-        { ...options, model: params.model, temperature: params.temperature ?? options.temperature, attempt, trace: { provider: 'anthropic', params } },
+        { ...options, model: params.model, temperature: params.temperature ?? options.temperature, attempt, trace: { provider: 'anthropic', params, headers: cleanHeaders(headers) } },
       ),
     { maxRetries: options.maxRetries ?? 2, speed: options.speed, signal, toError: toAnthropicError },
   );
@@ -478,7 +488,7 @@ class Messages {
   }
 
   private async run(params: MessageCreateParams, options: RequestOptions = {}): Promise<Message | LlmaoStream<MessageStreamEvent>> {
-    const prepared = await prepare(params, this.options, options.signal);
+    const prepared = await prepare(params, this.options, options.signal, options.headers);
     if (params.stream) {
       return new LlmaoStream((signal) => streamEvents(prepared, signal), options.signal);
     }
@@ -487,7 +497,7 @@ class Messages {
   }
 
   stream(params: MessageCreateParams, options: RequestOptions = {}): MessageStream {
-    return new MessageStream((signal) => prepare(params, this.options, signal), options.signal);
+    return new MessageStream((signal) => prepare(params, this.options, signal, options.headers), options.signal);
   }
 }
 

@@ -131,6 +131,10 @@ export function createServer(options: ServerOptions = {}): Server {
       if (!response.writableFinished) controller.abort();
     });
 
+    const headers = Object.fromEntries(
+      Object.entries(request.headers).flatMap(([key, value]) => (value === undefined ? [] : [[key, Array.isArray(value) ? value.join(', ') : value]])),
+    );
+
     const path = (request.url ?? '/').split('?')[0]!.replace(/\/+$/, '').replace(/^\/v1(?=\/)/, '');
     const flavor: Flavor = path === '/messages' ? 'anthropic' : 'openai';
 
@@ -143,7 +147,7 @@ export function createServer(options: ServerOptions = {}): Server {
       if (request.method === 'POST' && path === '/chat/completions') {
         const params = (await readJson(request)) as ChatCompletionCreateParams;
         if (!Array.isArray(params.messages)) throw new HttpError(400, "'messages' is required.");
-        const result = await openai.chat.completions.create({ ...params, model: params.model ?? 'lmao-1' }, { signal: controller.signal });
+        const result = await openai.chat.completions.create({ ...params, model: params.model ?? 'lmao-1' }, { signal: controller.signal, headers });
         if (result instanceof LlmaoStream) {
           startEventStream(response);
           for await (const chunk of result) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
@@ -157,7 +161,7 @@ export function createServer(options: ServerOptions = {}): Server {
       if (request.method === 'POST' && path === '/messages') {
         const params = (await readJson(request)) as MessageCreateParams;
         if (!Array.isArray(params.messages)) throw new HttpError(400, "'messages' is required.");
-        const result = await anthropic.messages.create({ ...params, model: params.model ?? 'lmao-1' }, { signal: controller.signal });
+        const result = await anthropic.messages.create({ ...params, model: params.model ?? 'lmao-1' }, { signal: controller.signal, headers });
         if (result instanceof LlmaoStream) {
           startEventStream(response);
           for await (const event of result) response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);

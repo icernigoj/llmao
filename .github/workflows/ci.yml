@@ -31,6 +31,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm test:node
+      - run: pnpm attw
       - uses: actions/upload-artifact@v4
         if: matrix.sdks == 'locked'
         with:

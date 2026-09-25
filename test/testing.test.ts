@@ -1,6 +1,6 @@
 import { generateObject, generateText, stepCountIs, tool } from 'ai';
 import { APICallError } from '@ai-sdk/provider';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createLlmao as createProvider } from '../src/ai-sdk';
 import Anthropic from '../src/anthropic';
@@ -225,5 +225,32 @@ describe('failures', () => {
     const failed = results.filter((result) => result.status === 'rejected').length;
     expect(failed).toBeGreaterThan(5);
     expect(failed).toBeLessThan(35);
+  });
+});
+
+describe('retry-after', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('is configurable, globally or per scripted error', async () => {
+    await expect(createLlmao({ ...fast, failures: { rateLimit: 1, retryAfter: 9 } }).ask('hi')).rejects.toMatchObject({ retryAfter: 9 });
+    await expect(createLlmao({ ...fast, script: [{ error: 'rate_limit', retryAfter: 3 }] }).ask('hi')).rejects.toMatchObject({ retryAfter: 3 });
+
+    const error = await new OpenAI({ ...fast, maxRetries: 0, failures: { rateLimit: 1, retryAfter: 12 } })
+      .chat.completions.create({ model: 'x', messages: [{ role: 'user', content: 'hi' }] })
+      .catch((caught: unknown) => caught);
+    expect((error as InstanceType<typeof OpenAI.RateLimitError>).headers?.get('retry-after')).toBe('12');
+  });
+
+  it('is honored when llmao clients retry, like the official SDKs', async () => {
+    vi.useFakeTimers();
+    const client = new OpenAI({ ...fast, script: [{ error: 'rate_limit', retryAfter: 5, once: true }, { text: 'ok' }] });
+
+    let settled = false;
+    const request = client.chat.completions.create({ model: 'x', messages: [{ role: 'user', content: 'hi' }] }).finally(() => (settled = true));
+
+    await vi.advanceTimersByTimeAsync(4_900);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(request).resolves.toMatchObject({ choices: [{ message: { content: 'ok' } }] });
   });
 });

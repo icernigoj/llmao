@@ -310,6 +310,7 @@ function scriptedThought(reply: ScriptedReply, request: ThinkRequest, language: 
     skill: 'script',
     language,
     failure: reply.error,
+    retryAfter: reply.retryAfter,
   };
 }
 

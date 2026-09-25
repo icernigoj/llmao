@@ -11,8 +11,18 @@ export interface RecordedCall {
   system: string;
   turns: Turn[];
   tools: ToolDefinition[];
-  /** The request exactly as your code sent it to the SDK */
+  /**
+   * The request as your code sent it: the object passed to the SDK, or the
+   * parsed JSON body when the call came through the HTTP server
+   */
   params: unknown;
+  /**
+   * Request headers, lowercased.  Filled in for calls through the HTTP server,
+   * where the official SDKs send e.g. `x-stainless-retry-count`
+   */
+  headers: Record<string, string>;
+  /** 0 for the first attempt, then 1, 2… when llmao's own clients retry */
+  attempt: number;
   /** What llmao answered, unless the call failed */
   answer?: Answer;
   /** The simulated failure, if any */

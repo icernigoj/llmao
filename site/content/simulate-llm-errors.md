@@ -20,6 +20,10 @@ llmao.configure({ failures: { rateLimit: 0.1, serverError: 0.05, timeout: 0.01 }
 
 // Or exactly once: the first attempt fails, the retry succeeds
 llmao.configure({ script: [{ error: 'rate_limit', once: true }, { text: 'Back online.' }] });
+
+// With a specific retry-after, in seconds (0 by default in test mode)
+llmao.configure({ failures: { rateLimit: 1, retryAfter: 20 } });
+llmao.configure({ script: [{ error: 'rate_limit', retryAfter: 20, once: true }, { text: 'ok' }] });
 ```
 
 ## The errors your code already handles
@@ -30,11 +34,11 @@ llmao.configure({ script: [{ error: 'rate_limit', once: true }, { text: 'Back on
 | Server error | `OpenAI.InternalServerError`, `status: 500` | `Anthropic.InternalServerError` | `APICallError`, `statusCode: 500` |
 | Timeout | `OpenAI.APIConnectionTimeoutError` | `Anthropic.APIConnectionTimeoutError` | `APICallError` |
 
-Rate limits come with a `retry-after` header on `error.headers` (a `Headers` object: read it with `error.headers.get('retry-after')`, not `error.headers['retry-after']`). In test mode it is `0`, so your backoff doesn't slow the test down.
+Rate limits come with a `retry-after` header on `error.headers` (a `Headers` object: read it with `error.headers.get('retry-after')`, not `error.headers['retry-after']`). In test mode it is `0` unless you set `retryAfter`, so your backoff doesn't slow the test down. To test that your code honors it, set a value and use fake timers ([recipe for node:test](../test-llm-code-any-runner/#testing-retries-with-fake-timers)).
 
 ## Retries
 
-The OpenAI and Anthropic clients retry like the official SDKs (`maxRetries`, default 2), and the AI SDK runs its own retries. Each attempt is recorded, so you can assert on them:
+The OpenAI and Anthropic clients retry like the official SDKs (`maxRetries`, default 2, waiting a short `retry-after` when there is one), and the AI SDK runs its own retries. Each attempt is recorded, so you can assert on them:
 
 ```ts
 llmao.configure({ failures: { rateLimit: 1 } });

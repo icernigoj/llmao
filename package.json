@@ -1,6 +1,6 @@
 {
   "name": "llmao",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Fake LLM for testing and for fun: mock OpenAI, Anthropic and the Vercel AI SDK in Jest, Vitest or any test runner. Streams, reasons, calls tools, returns structured output and hallucinates, powered by regex. No API key.",
   "keywords": [
     "llm",
@@ -60,6 +60,25 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
+  "typesVersions": {
+    "*": {
+      "openai": [
+        "./dist/openai.d.cts"
+      ],
+      "anthropic": [
+        "./dist/anthropic.d.cts"
+      ],
+      "ai-sdk": [
+        "./dist/ai-sdk.d.cts"
+      ],
+      "server": [
+        "./dist/server.d.cts"
+      ],
+      "testing": [
+        "./dist/testing.d.cts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "import": {
@@ -127,10 +146,12 @@
     "build": "tsdown && node scripts/cjs-interop.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke && pnpm test:node && pnpm attw",
     "smoke": "node test/smoke.mjs",
     "prepublishOnly": "pnpm check",
-    "site": "node scripts/build-site.mjs"
+    "site": "node scripts/build-site.mjs",
+    "attw": "attw --pack .",
+    "test:node": "node --test \"test/node/*.test.mjs\""
   },
   "peerDependencies": {
     "@ai-sdk/provider": ">=4"
@@ -144,6 +165,7 @@
     "@ai-sdk/openai": "^4.0.75",
     "@ai-sdk/provider": "^4.0.18",
     "@anthropic-ai/sdk": "^0.128.0",
+    "@arethetypeswrong/cli": "^0.18.5",
     "@types/node": "^26.6.2",
     "ai": "^7.0.113",
     "marked": "^18.0.14",

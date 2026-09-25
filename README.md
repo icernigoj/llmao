@@ -67,7 +67,7 @@ test('survives a rate limit', async () => {
 });
 ```
 
-The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK providers `@ai-sdk/openai` and `@ai-sdk/anthropic` (`llmao/ai-sdk`). The AI SDK is ESM-only, so with Jest it needs Jest's ESM mode and `jest.unstable_mockModule` ([example](https://icernigoj.github.io/llmao/test-vercel-ai-sdk/)). Importing `llmao/testing` turns on test mode: every client answers instantly, never hallucinates, uses what you pass to `configure()` and records its calls in `llmao.calls` (with the provider, model, prompt, system prompt, tools, the original request and the answer).
+The same works for `@anthropic-ai/sdk` (`llmao/anthropic`) and for the AI SDK providers `@ai-sdk/openai` and `@ai-sdk/anthropic` (`llmao/ai-sdk`). The AI SDK is ESM-only, so with Jest it needs Jest's ESM mode and `jest.unstable_mockModule` ([example](https://icernigoj.github.io/llmao/test-vercel-ai-sdk/)). Importing `llmao/testing` turns on test mode: every client answers instantly, never hallucinates, uses what you pass to `configure()` and records its calls in `llmao.calls` (with the provider, model, prompt, system prompt, tools, the original request, its headers, the attempt number and the answer).
 
 Test mode creates no timers, so it works with `jest.useFakeTimers()` and `vi.useFakeTimers()` out of the box. To test a loading state or your own timeout, turn the latency back on with `configure({ speed: 'realistic' })` and move the clock with `vi.advanceTimersByTimeAsync()`.
 
@@ -277,7 +277,7 @@ for await (const event of ai.stream('Tell me a joke')) {
 | `reasoning` | `true` | Whether it "thinks" first |
 | `script` | | Scripted answers, see [Testing and mocking](#testing-and-mocking) |
 | `unscripted` | `'improvise'` | `'error'` fails on prompts the script doesn't cover |
-| `failures` | | Probability of `rateLimit`, `serverError` and `timeout` failures |
+| `failures` | | Probability of `rateLimit`, `serverError` and `timeout` failures, and the `retryAfter` seconds rate limits ask for |
 
 It even follows (some) system prompts: try `system: 'Talk like a pirate'`.
 
