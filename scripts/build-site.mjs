@@ -54,6 +54,7 @@ function layout({ title, description, path, body, scripts = '' }) {
 <title>${escape(title)}</title>
 <meta name="description" content="${escape(description)}">
 <link rel="canonical" href="${url}">
+<meta name="google-site-verification" content="AW7gF3qFlfkbJ_9RQGB9tSLCO42lvEGnW_jM5OYEZ0Y">
 <link rel="icon" type="image/png" href="${SITE}/assets/icon.png">
 <link rel="alternate" type="text/plain" title="llms.txt" href="${SITE}/llms.txt">
 <meta property="og:type" content="website">
