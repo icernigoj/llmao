@@ -5,6 +5,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync,
 import { join } from 'node:path';
 import { marked } from 'marked';
 import { createHighlighter } from 'shiki';
+import { siAnthropic, siJest, siNodedotjs, siPython, siVercel, siVitest } from 'simple-icons';
 
 // SITE_URL lets you preview locally, e.g. SITE_URL=http://localhost:4173
 const SITE = (process.env.SITE_URL ?? 'https://icernigoj.github.io/llmao').replace(/\/$/, '');
@@ -40,6 +41,26 @@ function parseFrontMatter(source) {
   if (!match) throw new Error('Missing front matter');
   const meta = Object.fromEntries(match[1].split('\n').map((line) => [line.slice(0, line.indexOf(':')).trim(), line.slice(line.indexOf(':') + 1).trim()]));
   return { meta, body: source.slice(match[0].length) };
+}
+
+// --- Logos (Simple Icons, CC0). OpenAI asked to be removed from that set, so it is text only ---
+
+const BRANDS = {
+  jest: { icon: siJest, label: 'Jest' },
+  vitest: { icon: siVitest, label: 'Vitest' },
+  node: { icon: siNodedotjs, label: 'node:test' },
+  openai: { icon: null, label: 'OpenAI' },
+  anthropic: { icon: siAnthropic, label: 'Anthropic', mono: true },
+  aisdk: { icon: siVercel, label: 'AI SDK', mono: true },
+  python: { icon: siPython, label: 'Python' },
+};
+
+function logo(id, { withLabel = true } = {}) {
+  const brand = BRANDS[id];
+  // Brands without a free logo are shown by name
+  if (!brand.icon) return `<span class="brand-logo brand-text">${brand.label}</span>`;
+  const svg = `<svg viewBox="0 0 24 24" aria-hidden="true" style="${brand.mono ? '' : `color:#${brand.icon.hex}`}"><path d="${brand.icon.path}"/></svg>`;
+  return `<span class="brand-logo" title="${brand.label}">${svg}${withLabel ? `<span>${brand.label}</span>` : ''}</span>`;
 }
 
 // --- Layout --------------------------------------------------------------------
@@ -148,33 +169,109 @@ test('classifies shipping tickets', async () => {
 });
 \`\`\``);
 
+const RECIPE_LOGOS = {
+  'mock-openai-jest': ['jest', 'openai'],
+  'mock-openai-vitest': ['vitest', 'openai'],
+  'mock-anthropic-sdk': ['jest', 'vitest', 'anthropic'],
+  'test-vercel-ai-sdk': ['aisdk'],
+  'simulate-llm-errors': ['openai', 'anthropic', 'aisdk'],
+  'test-llm-code-any-runner': ['node', 'openai', 'anthropic'],
+  'fake-openai-api-server': ['python', 'node', 'openai'],
+};
+
 const cards = recipes
-  .map((recipe) => `<a class="card" href="${SITE}/${recipe.slug}/"><strong>${escape(recipe.meta.title.replace(/^How to /, '').replace(/^./, (c) => c.toUpperCase()))}</strong><span>${escape(recipe.meta.description.split('. ')[0])}.</span></a>`)
+  .map(
+    (recipe) => `<a class="card" href="${SITE}/${recipe.slug}/">
+  <span class="card-logos">${(RECIPE_LOGOS[recipe.slug] ?? []).map((id) => logo(id, { withLabel: false })).join('')}</span>
+  <strong>${escape(recipe.meta.title.replace(/^How to /, '').replace(/^./, (c) => c.toUpperCase()))}</strong>
+  <span>${escape(recipe.meta.description.split('. ')[0])}.</span>
+</a>`,
+  )
+  .join('\n');
+
+const useCases = [
+  {
+    logos: ['jest', 'vitest'],
+    title: 'Mock LLMs in your tests',
+    text: 'Swap <code>openai</code> or <code>@anthropic-ai/sdk</code> for llmao with one line. Script the answers and assert on what your app sent.',
+    href: 'mock-openai-jest/',
+  },
+  {
+    badge: '429',
+    title: 'Test rate limits and outages',
+    text: "Real 429s, 500s and timeouts, thrown as the SDKs' own error classes. See your retry logic actually work.",
+    href: 'simulate-llm-errors/',
+  },
+  {
+    logos: ['aisdk'],
+    title: 'Test AI SDK agents',
+    text: '<code>generateText</code>, <code>streamText</code>, <code>generateObject</code> and tool calls, scripted step by step.',
+    href: 'test-vercel-ai-sdk/',
+  },
+  {
+    logos: ['python', 'node'],
+    title: 'Any language, any runner',
+    text: 'An OpenAI and Anthropic compatible server. <code>npx llmao serve</code> and point your SDK at it.',
+    href: 'fake-openai-api-server/',
+  },
+]
+  .map(
+    (useCase) => `<a class="use-case" href="${SITE}/${useCase.href}">
+  <span class="use-case-icon">${useCase.badge ? `<span class="status-badge">${useCase.badge}</span>` : useCase.logos.map((id) => logo(id, { withLabel: false })).join('')}</span>
+  <strong>${useCase.title}</strong>
+  <span>${useCase.text}</span>
+  <span class="more">Read the guide →</span>
+</a>`,
+  )
   .join('\n');
 
 const landing = `<main class="landing">
 <section class="hero">
-  <h1>Just as wrong.<br>Way cheaper.</h1>
-  <p class="lead">A fake LLM that streams, reasons, calls tools and confidently hallucinates, powered by regex. Mock OpenAI, Anthropic and the Vercel AI SDK in your tests, run demos without an API key, or just have fun.</p>
-  <div class="install"><code>npm i -D llmao</code><button type="button" data-copy="npm i -D llmao">Copy</button></div>
+  <div class="hero-copy">
+    <p class="eyebrow">A fake LLM for tests, demos and fun</p>
+    <h1>Just as wrong.<br><span class="gradient-text">Way cheaper.</span></h1>
+    <p class="lead">It streams, reasons, calls tools and confidently hallucinates, powered by regex. Swap it in for OpenAI, Anthropic or the Vercel AI SDK in your tests, and stop paying for flaky CI.</p>
+  </div>
+  <div class="hero-cta">
+    <div class="cta-card">
+      <span class="cta-label">Install</span>
+      <div class="cta-command"><code><span class="prompt">$</span> npm i -D llmao</code><button type="button" class="copy" data-copy="npm i -D llmao">Copy</button></div>
+      <div class="cta-buttons">
+        <a class="button primary" href="#try">Try it in the browser</a>
+        <a class="button" href="#docs">Read the guides</a>
+      </div>
+      <ul class="cta-points"><li>No API key</li><li>Zero dependencies</li><li>MIT</li></ul>
+    </div>
+  </div>
+</section>
+
+<section class="works-with" aria-label="Works with">
+  <span class="works-with-label">Works with</span>
+  <div class="logos">${['jest', 'vitest', 'node', 'openai', 'anthropic', 'aisdk', 'python'].map((id) => logo(id)).join('')}</div>
+</section>
+
+<section class="use-cases" aria-label="Use cases">
+${useCases}
 </section>
 
 <section class="playground" aria-labelledby="try">
   <h2 id="try">Try it</h2>
+  <p class="section-lead">Pick a model and ask anything. It will answer with total confidence.</p>
   <form id="ask">
     <select id="model" aria-label="Model"></select>
     <input id="prompt" aria-label="Your question" autocomplete="off" placeholder="how many r are in strawberry?">
     <button type="submit">Ask</button>
   </form>
   <div class="examples" id="examples"></div>
-  <div class="output" id="output" aria-live="polite"><p class="hint">Ask anything. It will answer with total confidence.</p></div>
+  <div class="output" id="output" aria-live="polite"><p class="hint">Try the overthinker with "what is 2 + 2?", or ask lmao-safe to reverse a word.</p></div>
   <div class="actions"><span id="stats"></span><button type="button" id="share" hidden>Copy link to this answer</button></div>
 </section>
 
 <section id="docs">
   <h2>Mock LLMs in your tests</h2>
-  <p>Swap the SDK your app already uses for llmao, script the answers, simulate rate limits and outages, and check what your app sent. No API keys in CI, no flaky tests, no bill.</p>
+  <p class="section-lead">Swap the SDK your app already uses for llmao, script the answers, simulate rate limits and outages, and check what your app sent. No API keys in CI, no flaky tests, no bill.</p>
   ${snippet}
+  <h3 class="guides-title">Guides</h3>
   <div class="cards">${cards}</div>
 </section>
 

@@ -138,27 +138,295 @@ main.doc h2 {
   margin-top: 36px;
 }
 
+/* --- Hero ----------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+  padding: 36px 0 20px;
+}
+
+.hero h1 {
+  margin: 8px 0 18px;
+  font-size: clamp(42px, 7vw, 72px);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #7c3aed, #ec4899 55%, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .lead {
   font-size: 20px;
   color: var(--muted);
-  max-width: 680px;
+  margin: 0;
 }
 
-.install {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+.cta-card {
+  position: relative;
+  padding: 26px;
+  border-radius: 20px;
   background: var(--surface);
+  border: 1px solid transparent;
+  background-image: linear-gradient(var(--surface), var(--surface)), linear-gradient(135deg, #7c3aed, #ec4899, #f59e0b);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 20px 60px -24px rgba(124, 58, 237, 0.45);
 }
 
-.install code {
+.cta-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.cta-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 18px;
+  padding: 14px 14px 14px 18px;
+  border-radius: 12px;
+  background: #0d1117;
+  color: #f5f5f7;
+}
+
+.cta-command code {
   background: none;
   padding: 0;
-  font-size: 16px;
+  font-size: clamp(18px, 2.4vw, 22px);
+  font-weight: 600;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.cta-command .prompt {
+  color: #ec4899;
+  margin-right: 6px;
+}
+
+.cta-command .copy {
+  background: #262c36;
+  border-color: #3a414d;
+  color: #f5f5f7;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.button {
+  flex: 1 1 auto;
+  text-align: center;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.button:hover {
+  border-color: var(--accent);
+}
+
+.button.primary {
+  border: none;
+  color: #fff;
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
+}
+
+.cta-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.cta-points li::before {
+  content: '✓ ';
+  color: #16a34a;
+  font-weight: 700;
+}
+
+/* --- Logos and use cases ----------------------------------------------------- */
+
+.works-with {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 28px 0 8px;
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.works-with-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.brand-logo svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  flex: none;
+}
+
+.use-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.use-case {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.use-case:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.use-case-icon {
+  display: flex;
+  gap: 8px;
+  height: 30px;
+  align-items: center;
+}
+
+.use-case-icon .brand-logo svg {
+  width: 26px;
+  height: 26px;
+}
+
+.status-badge {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  color: #fff;
+  background: #dc2626;
+}
+
+.use-case strong {
+  font-size: 17px;
+}
+
+.use-case > span:not(.use-case-icon):not(.more) {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.use-case .more {
+  margin-top: auto;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.use-case code {
+  background: none;
+  padding: 0;
+  font-size: 0.92em;
+  color: var(--text);
+}
+
+.brand-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.works-with .brand-text {
+  font-size: 15px;
+  border: none;
+  padding: 0;
+}
+
+.card-logos {
+  display: flex;
+  gap: 8px;
+}
+
+.card-logos .brand-logo svg {
+  width: 18px;
+  height: 18px;
+}
+
+.section-lead {
+  color: var(--muted);
+  margin-top: 0;
+}
+
+.guides-title {
+  margin: 32px 0 0;
+  font-size: 18px;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 16px;
+  }
 }
 
 button {
