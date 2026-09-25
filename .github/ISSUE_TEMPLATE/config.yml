@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Guides
+    url: https://icernigoj.github.io/llmao/
+    about: How to mock OpenAI, Anthropic and the AI SDK in your tests

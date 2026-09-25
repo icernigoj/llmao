@@ -40,5 +40,5 @@ pnpm site         # builds the docs site into site-dist/ (after pnpm build); SIT
 
 1. Bump `version` in package.json and add a CHANGELOG entry
 2. `pnpm check`, commit, push, wait for CI
-3. The maintainer publishes with 2FA: `npm publish --access public --otp=<code>`
-4. `gh release create vX.Y.Z --target <full sha> --title "llmao X.Y.Z: …"`
+3. `gh release create vX.Y.Z --target <full sha> --title "llmao X.Y.Z: …" --notes-file <changelog section>`
+4. Publishing the release runs `.github/workflows/release.yml`, which publishes to npm with trusted publishing (no token, no OTP). The tag must match package.json

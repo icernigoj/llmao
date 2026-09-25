@@ -1,0 +1,25 @@
+name: Bug report
+description: Something works differently from the official SDK, or from the docs
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what llmao did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest code that shows it. A failing test is perfect.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: llmao, Node, and the SDK you use (openai, @anthropic-ai/sdk, ai…)
+      placeholder: llmao 0.3.0, Node 22, openai 7.23

@@ -43,6 +43,11 @@ describe('skills', () => {
     expect(answer.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('rolls dice', async () => {
+    expect((await sober.ask('roll a die')).text).toMatch(/^You rolled a [1-6]\.$/);
+    expect((await sober.ask('tirá un dado')).text).toMatch(/^Salió [1-6]\.$/);
+  });
+
   it('divides by zero gracefully', async () => {
     expect((await sober.ask('what is 1/0')).text).toMatch(/infinity/);
   });

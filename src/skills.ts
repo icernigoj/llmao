@@ -415,6 +415,20 @@ const randomNumber: Skill = {
   },
 };
 
+const dice: Skill = {
+  name: 'dice',
+  run({ text, language, rng }) {
+    if (!/\broll (?:a |the )?(?:die|dice|d6)\b|\btir[aá] (?:un|el) dado\b/i.test(text)) return null;
+
+    const roll = rng.int(1, 6);
+    return {
+      answer: say(language, { en: `You rolled a ${roll}.`, es: `Salió ${roll}.` }),
+      steps: [say(language, { en: 'Rolling a die in my latent space…', es: 'Tirando un dado en mi espacio latente…' })],
+      wrong: () => ({ answer: say(language, { en: 'You rolled a 7.', es: 'Salió 7.' }) }),
+    };
+  },
+};
+
 const decision: Skill = {
   name: 'decision',
   run({ text, language, rng }) {
@@ -585,6 +599,7 @@ export const SKILLS: Skill[] = [
   parity,
   prime,
   randomNumber,
+  dice,
   meaningOfLife,
   clock,
   sortList,

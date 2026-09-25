@@ -1,0 +1,31 @@
+name: Joke or feature idea
+description: A new skill, model, or something llmao should fake better
+labels: [idea]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of idea?
+      options:
+        - A new skill (something it should answer)
+        - A new model (a new personality)
+        - A testing feature
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: For a skill or model, show an example prompt and the answer you imagine.
+      placeholder: |
+        Prompt: "is it going to rain tomorrow?"
+        Answer: "Yes. Or no. I'm 97% confident."
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Want to build it?
+      options:
+        - label: I'd like to send a PR (see CONTRIBUTING.md)
