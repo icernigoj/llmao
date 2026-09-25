@@ -50,6 +50,21 @@ expect(llmao.calls.every((call) => call.failure === 'rate_limit')).toBe(true);
 
 If your code wraps the SDK in its own retry loop, this is also how you find out that you are retrying the SDK's retries.
 
+### Testing your own retry loop
+
+The SDK retries first, so a single scripted failure never reaches your code: the SDK's second attempt succeeds. To exercise your loop, make every attempt of the SDK fail, or turn the SDK's retries off in the test:
+
+```ts
+// Every request fails: the SDK gives up and your loop sees the error
+llmao.configure({ failures: { rateLimit: 1, retryAfter: 20 } });
+
+// Or fail exactly one of your attempts: once per SDK request (maxRetries + 1, so 3 by default)
+const rateLimit = { error: 'rate_limit', retryAfter: 20, once: true } as const;
+llmao.configure({ script: [rateLimit, { ...rateLimit }, { ...rateLimit }, { text: 'ok' }] });
+```
+
+Each `once` rule is consumed by one HTTP request, so copies are needed: the same object would count as one rule. With a real `retry-after`, both the SDK and your loop wait it out: drive the clock with fake timers ([node:test recipe](../test-llm-code-any-runner/#testing-retries-with-fake-timers)). The SDK numbers its attempts in the `x-stainless-retry-count` request header, recorded in `llmao.calls[i].headers`.
+
 ## Related
 
 - [Mock OpenAI in Jest](../mock-openai-jest/)
